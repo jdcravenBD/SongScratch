@@ -1,10 +1,10 @@
 /**
- * Song Scratch design tokens + baseline.
+ * Song Scratch design system.
  *
- * The whole app is black background, white text, grey for secondary detail
- * (dates, hints, metadata) — deliberately close to iOS Notes and Voice Memos.
- * Everything downstream should read from these variables rather than hard-code
- * colours or sizes, so the look stays consistent as screens are added.
+ * Black background, white text, grey for secondary detail — deliberately close
+ * to iOS Notes and Voice Memos. On desktop the app is drawn inside an iPhone 12
+ * frame so it previews at phone proportions; on a real phone the frame melts
+ * away and it fills the screen with the OS's own safe-area insets.
  */
 
 :root {
@@ -12,36 +12,39 @@
 
   /* Surfaces */
   --bg: #000000;
-  --bg-elevated: #1c1c1e; /* grouped cells / sheets, iOS "systemGray6" dark */
-  --separator: #38383a; /* hairline dividers */
+  --bg-elevated: #1c1c1e; /* grouped list card */
+  --bg-pressed: #2c2c2e; /* row under a finger */
+  --separator: rgba(84, 84, 88, 0.55);
 
   /* Text */
-  --text: #ffffff; /* primary */
-  --text-secondary: #8e8e93; /* dates, metadata, captions — iOS secondary grey */
-  --text-tertiary: #636366; /* placeholders, disabled */
+  --text: #ffffff;
+  --text-secondary: #98989f; /* dates, previews, metadata */
+  --text-tertiary: #6b6b70; /* placeholders, disabled */
 
-  /* Accent — kept minimal; iOS red for the record affordance later */
-  --accent: #ffffff;
-  --record: #ff453a;
+  /* Accents — kept minimal; red only for destructive actions */
+  --tint: #ffffff; /* interactive text (Select / Done …) */
+  --danger: #ff453a;
 
-  /* Type scale (roughly maps to the lyric-screen hierarchy) */
+  /* Type */
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui,
     sans-serif;
-  --fs-title: 28px; /* song title */
-  --fs-subhead: 20px; /* tuning */
-  --fs-heading: 22px; /* section headers (Verse, Chorus…) */
-  --fs-body: 17px; /* lyrics, description, chords */
-  --fs-detail: 13px; /* dates / secondary metadata */
+  --fs-large-title: 32px;
+  --fs-title: 28px;
+  --fs-subhead: 20px;
+  --fs-heading: 22px;
+  --fs-body: 17px;
+  --fs-detail: 13px;
 
-  /* Spacing + shape */
+  /* Shape + spacing */
   --radius: 12px;
   --gap: 16px;
 
-  /* Safe-area insets, so content clears the notch and home indicator */
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
+  /* Safe-area insets. Real values on a phone; overridden inside the desktop
+     frame, where the browser reports them as zero. */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
 }
 
 * {
@@ -60,42 +63,439 @@ body {
   color: var(--text);
   font-family: var(--font);
   font-size: var(--fs-body);
-  line-height: 1.4;
+  line-height: 1.35;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* Stop the whole page rubber-banding on iOS; scroll lives inside panes. */
   overscroll-behavior: none;
 }
 
-/* ------------------------------------------------------ scaffold placeholder */
+button {
+  font: inherit;
+  color: inherit;
+  margin: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+}
+
+/* ------------------------------------------------------------------ shell -- */
 
 .app {
-  min-height: 100%;
+  position: relative;
+  height: 100%;
+  container-type: size;
+  container-name: app;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* The screen fills the frame and carries the safe-area padding. Its three rows
+   are a fixed header, a scrolling list, and a fixed bottom bar. */
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+}
+
+/* --------------------------------------------------------------- top bar -- */
+
+.topbar {
+  flex: 0 0 auto;
+  padding: 4px 20px 6px;
+}
+
+.topbar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+}
+
+.topbar__slot {
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+}
+
+.topbar__slot--right {
+  justify-content: flex-end;
+}
+
+.topbar__title {
+  margin: 2px 0 0;
+  font-size: var(--fs-large-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.btn-text {
+  color: var(--tint);
+  font-size: var(--fs-body);
+  padding: 6px 2px;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-text:active {
+  opacity: 0.5;
+}
+
+/* ----------------------------------------------------------------- list -- */
+
+.list-area {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 16px 10px;
+}
+
+/* Grouped rounded card, like Notes. Clips the swipe-to-delete red to its
+   rounded edge. */
+.card {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.row {
+  position: relative;
+  /* The delete affordance sits underneath, revealed as the foreground slides. */
+  background: var(--danger);
+}
+
+.row + .row .row__fg::before {
+  /* Hairline separator, inset to clear the text like iOS. */
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--separator);
+}
+
+.row__fg {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 62px;
+  background: var(--bg-elevated);
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+}
+
+.row__fg.is-pressing {
+  background: var(--bg-pressed);
+}
+
+.row__check {
+  flex: 0 0 auto;
+  display: flex;
+  color: var(--text);
+  margin-left: -2px;
+}
+
+.row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.row__title {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__meta {
+  display: flex;
+  gap: 6px;
+  font-size: var(--fs-detail);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.row__date {
+  color: var(--text-secondary);
+  flex: 0 0 auto;
+}
+
+.row__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The red action sitting behind the row, exposed on a left-swipe. */
+.row__delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--danger);
+}
+
+.row__delete:active {
+  background: #d70015;
+}
+
+/* --------------------------------------------------------- empty state -- */
+
+.empty {
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 8px;
-  padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 24px)
-    calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 24px);
+  gap: 6px;
+  padding: 0 32px 40px;
 }
 
-.wordmark {
+.empty__title {
   margin: 0;
-  font-size: var(--fs-title);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.tagline {
-  margin: 0;
+  font-size: var(--fs-subhead);
+  font-weight: 600;
   color: var(--text-secondary);
-  font-size: var(--fs-body);
 }
 
-.scaffold-note {
-  margin-top: 8px;
-  color: var(--text-tertiary);
+.empty__hint {
+  margin: 0;
   font-size: var(--fs-detail);
+  color: var(--text-tertiary);
+}
+
+/* -------------------------------------------------------------- bottom -- */
+
+.bottombar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 12px;
+  border-top: 1px solid var(--separator);
+}
+
+.search {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  background: #1c1c1e;
+  color: var(--text-secondary);
+}
+
+.search__icon {
+  flex: 0 0 auto;
+}
+
+.search__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  outline: none;
+}
+
+.search__input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Hide the native search "x"; the field is short-lived and it clashes. */
+.search__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.compose {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compose:active {
+  background: var(--bg-pressed);
+}
+
+.bottombar--actions {
+  justify-content: space-between;
+}
+
+.action {
+  color: var(--tint);
+  font-size: var(--fs-body);
+  padding: 8px 6px;
+}
+
+.action:disabled {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
+.action--danger {
+  color: var(--danger);
+}
+
+.action--danger:disabled {
+  color: var(--text-tertiary);
+}
+
+/* ============================================================ device frame ==
+ * Desktop only: draw the app in an iPhone 12-shaped chassis (390x844) so a
+ * browser tab shows the proportions you'd hold. The chrome (notch, home bar)
+ * and the simulated safe-area insets live here; on a phone none of this fires.
+ */
+
+.device-chrome {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+/* Sized in cqw (a fraction of the app width) so the whole simulation stays in
+   proportion as the frame scales. Reference is a 390pt-wide iPhone 12. */
+.device-chrome__notch {
+  --notch-ink: #000;
+  --fillet: 1.9cqw;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 41cqw;
+  height: 7.7cqw;
+  background: var(--notch-ink);
+  border-bottom-left-radius: 4.9cqw;
+  border-bottom-right-radius: 4.9cqw;
+}
+
+/* Concave fillets where the notch meets the top edge, so it reads as the bezel
+   dipping in rather than a floating island. */
+.device-chrome__notch::before,
+.device-chrome__notch::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: var(--fillet);
+  height: var(--fillet);
+}
+
+.device-chrome__notch::before {
+  left: calc(-1 * var(--fillet));
+  background: radial-gradient(
+    circle at 0 100%,
+    transparent var(--fillet),
+    var(--notch-ink) calc(var(--fillet) + 0.5px)
+  );
+}
+
+.device-chrome__notch::after {
+  right: calc(-1 * var(--fillet));
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent var(--fillet),
+    var(--notch-ink) calc(var(--fillet) + 0.5px)
+  );
+}
+
+.device-chrome__speaker {
+  width: 10.8cqw;
+  height: 1.3cqw;
+  border-radius: 999px;
+  background: #14161a;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.9),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.device-chrome__home {
+  position: absolute;
+  bottom: 2cqw;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34.4cqw;
+  height: 1.3cqw;
+  border-radius: 999px;
+  background: var(--text);
+  opacity: 0.5;
+}
+
+@media (min-width: 620px) and (min-height: 560px) {
+  body {
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: radial-gradient(70% 60% at 50% 30%, #141414 0%, #000 72%);
+  }
+
+  #root {
+    /* iPhone 12 safe-area insets, which the browser reports as zero here.
+       Expressed as percentages of the frame so they scale with it — percentage
+       padding resolves against width, which is what makes it work top/bottom. */
+    --safe-t: 5.6%;
+    --safe-b: 3.9%;
+    --safe-l: 0px;
+    --safe-r: 0px;
+
+    height: min(844px, calc(100dvh - 40px));
+    aspect-ratio: 390 / 844;
+    max-width: calc(100vw - 40px);
+    /* 44pt corners, kept circular as the frame scales. */
+    border-radius: 11.3% / 5.21%;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 8px #000,
+      0 0 0 10px #2a2a2c,
+      0 44px 90px -28px rgba(0, 0, 0, 0.8),
+      0 6px 20px rgba(0, 0, 0, 0.35);
+  }
+
+  .device-chrome {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
