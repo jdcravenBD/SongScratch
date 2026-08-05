@@ -116,6 +116,11 @@ export default function SongList() {
               : `${count} Selected`
             : 'Songs'}
         </h1>
+        {!selectMode && songs && (
+          <p className="topbar__subtitle">
+            {songs.length} {songs.length === 1 ? 'Song' : 'Songs'}
+          </p>
+        )}
       </header>
 
       <main className="list-area">

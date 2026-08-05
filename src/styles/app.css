@@ -1,10 +1,11 @@
 /**
  * Song Scratch design system.
  *
- * Black background, white text, grey for secondary detail — deliberately close
- * to iOS Notes and Voice Memos. On desktop the app is drawn inside an iPhone 12
- * frame so it previews at phone proportions; on a real phone the frame melts
- * away and it fills the screen with the OS's own safe-area insets.
+ * Black background, white text, grey for secondary detail — modelled on iOS
+ * Notes / Voice Memos, but with plain frosted glass in place of iOS's liquid
+ * glass. On desktop the app is drawn inside an iPhone 12 frame so it previews
+ * at phone proportions; on a real phone the frame melts away and it fills the
+ * screen with the OS's own safe-area insets.
  */
 
 :root {
@@ -12,17 +13,23 @@
 
   /* Surfaces */
   --bg: #000000;
-  --bg-elevated: #1c1c1e; /* grouped list card */
-  --bg-pressed: #2c2c2e; /* row under a finger */
+  --bg-pressed: rgba(255, 255, 255, 0.14);
+  --row-hover: rgba(255, 255, 255, 0.07); /* fades in behind a hovered song */
   --separator: rgba(84, 84, 88, 0.55);
+
+  /* Frosted glass — translucent white with a blur, for defined controls. */
+  --glass-bg: rgba(255, 255, 255, 0.09);
+  --glass-bg-strong: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.16);
+  --glass-blur: blur(20px) saturate(150%);
+  --bar-frost: rgba(12, 12, 14, 0.55); /* the floating bottom bar itself */
 
   /* Text */
   --text: #ffffff;
-  --text-secondary: #98989f; /* dates, previews, metadata */
-  --text-tertiary: #6b6b70; /* placeholders, disabled */
+  --text-secondary: #98989f;
+  --text-tertiary: #6b6b70;
 
-  /* Accents — kept minimal; red only for destructive actions */
-  --tint: #ffffff; /* interactive text (Select / Done …) */
+  --tint: #ffffff; /* interactive text */
   --danger: #ff453a;
 
   /* Type */
@@ -35,12 +42,10 @@
   --fs-body: 17px;
   --fs-detail: 13px;
 
-  /* Shape + spacing */
   --radius: 12px;
-  --gap: 16px;
+  --radius-pill: 999px;
 
-  /* Safe-area insets. Real values on a phone; overridden inside the desktop
-     frame, where the browser reports them as zero. */
+  /* Safe-area insets. Real on a phone; overridden inside the desktop frame. */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
@@ -93,21 +98,21 @@ input {
   overflow: hidden;
 }
 
-/* The screen fills the frame and carries the safe-area padding. Its three rows
-   are a fixed header, a scrolling list, and a fixed bottom bar. */
+/* Fills the frame. The bottom bar floats over the list, so only the top and
+   side insets pad the screen; the bar carries the bottom inset itself. */
 .screen {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  padding-top: var(--safe-t);
 }
 
 /* --------------------------------------------------------------- top bar -- */
 
 .topbar {
   flex: 0 0 auto;
-  padding: 4px 20px 6px;
+  padding: 4px calc(20px + var(--safe-r)) 6px calc(20px + var(--safe-l));
 }
 
 .topbar__row {
@@ -115,6 +120,7 @@ input {
   align-items: center;
   justify-content: space-between;
   min-height: 40px;
+  gap: 8px;
 }
 
 .topbar__slot {
@@ -130,20 +136,36 @@ input {
 .topbar__title {
   margin: 2px 0 0;
   font-size: var(--fs-large-title);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.02em;
 }
 
+.topbar__subtitle {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-detail);
+}
+
+/* Frosted pill buttons — Select / Done / Select All. */
 .btn-text {
   color: var(--tint);
   font-size: var(--fs-body);
-  padding: 6px 2px;
-  border-radius: 8px;
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+
+.btn-text:hover {
+  background: var(--glass-bg-strong);
 }
 
 .btn-text:active {
-  opacity: 0.5;
+  background: var(--bg-pressed);
 }
 
 /* ----------------------------------------------------------------- list -- */
@@ -152,35 +174,22 @@ input {
   flex: 1 1 auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 6px 16px 10px;
+  /* Bottom padding clears the floating bar so the last row can scroll clear. */
+  padding: 6px calc(16px + var(--safe-r)) calc(84px + var(--safe-b))
+    calc(16px + var(--safe-l));
 }
 
-/* Grouped rounded card, like Notes. Clips the swipe-to-delete red to its
-   rounded edge. */
+/* No card background any more — songs sit straight on black, divided only by
+   hairlines, with a rounded highlight that fades in on hover. */
 .card {
   list-style: none;
   margin: 0;
   padding: 0;
-  background: var(--bg-elevated);
-  border-radius: var(--radius);
-  overflow: hidden;
 }
 
 .row {
   position: relative;
-  /* The delete affordance sits underneath, revealed as the foreground slides. */
-  background: var(--danger);
-}
-
-.row + .row .row__fg::before {
-  /* Hairline separator, inset to clear the text like iOS. */
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 16px;
-  right: 0;
-  height: 1px;
-  background: var(--separator);
+  background: var(--danger); /* revealed by a left-swipe */
 }
 
 .row__fg {
@@ -191,17 +200,50 @@ input {
   gap: 12px;
   padding: 12px 16px;
   min-height: 62px;
-  background: var(--bg-elevated);
+  background: var(--bg); /* opaque, so it hides the delete action when closed */
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
   will-change: transform;
 }
 
-.row__fg.is-pressing {
-  background: var(--bg-pressed);
+/* Hover highlight: a rounded, fully-beveled fill that fades in and out. Behind
+   the text (a ::before paints under the element's content). */
+.row__fg::before {
+  content: '';
+  position: absolute;
+  inset: 3px 4px;
+  border-radius: 16px;
+  background: var(--row-hover);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .row__fg:hover::before {
+    opacity: 1;
+  }
+}
+
+.row__fg.is-pressing::before {
+  opacity: 1;
+}
+
+/* Hairline separator between rows (not above the first), inset like iOS. Drawn
+   on top so it stays visible over the hover highlight. */
+.row + .row .row__fg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 0;
+  height: 1px;
+  background: var(--separator);
 }
 
 .row__check {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
   display: flex;
   color: var(--text);
@@ -209,6 +251,8 @@ input {
 }
 
 .row__text {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -243,7 +287,6 @@ input {
   text-overflow: ellipsis;
 }
 
-/* The red action sitting behind the row, exposed on a left-swipe. */
 .row__delete {
   position: absolute;
   top: 0;
@@ -271,7 +314,7 @@ input {
   justify-content: center;
   text-align: center;
   gap: 6px;
-  padding: 0 32px 40px;
+  padding: 0 32px 60px;
 }
 
 .empty__title {
@@ -287,31 +330,42 @@ input {
   color: var(--text-tertiary);
 }
 
-/* -------------------------------------------------------------- bottom -- */
+/* --------------------------------------------- floating frosted bottom bar -- */
 
 .bottombar {
-  flex: 0 0 auto;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px 12px;
-  border-top: 1px solid var(--separator);
+  padding: 10px calc(16px + var(--safe-r)) calc(12px + var(--safe-b))
+    calc(16px + var(--safe-l));
+  background: var(--bar-frost);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Fully rounded (pill) frosted search field, with a solid-white magnifier. */
 .search {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 8px;
   height: 40px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: #1c1c1e;
-  color: var(--text-secondary);
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .search__icon {
   flex: 0 0 auto;
+  color: var(--text); /* fully white magnifier */
 }
 
 .search__input {
@@ -327,28 +381,38 @@ input {
   color: var(--text-secondary);
 }
 
-/* Hide the native search "x"; the field is short-lived and it clashes. */
 .search__input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
 }
 
+/* New Song — a defined, fully-beveled (circular) frosted button. */
 .compose {
   flex: 0 0 auto;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   color: var(--text);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+
+.compose:hover {
+  background: var(--glass-bg-strong);
 }
 
 .compose:active {
   background: var(--bg-pressed);
 }
 
+/* Select-mode action buttons: frosted pills, Delete in red. */
 .bottombar--actions {
   justify-content: space-between;
 }
@@ -356,11 +420,23 @@ input {
 .action {
   color: var(--tint);
   font-size: var(--fs-body);
-  padding: 8px 6px;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: background 0.15s ease;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--glass-bg-strong);
 }
 
 .action:disabled {
   color: var(--text-tertiary);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
   cursor: default;
 }
 
@@ -368,14 +444,9 @@ input {
   color: var(--danger);
 }
 
-.action--danger:disabled {
-  color: var(--text-tertiary);
-}
-
 /* ============================================================ device frame ==
  * Desktop only: draw the app in an iPhone 12-shaped chassis (390x844) so a
- * browser tab shows the proportions you'd hold. The chrome (notch, home bar)
- * and the simulated safe-area insets live here; on a phone none of this fires.
+ * browser tab shows the proportions you'd hold. On a phone none of this fires.
  */
 
 .device-chrome {
@@ -386,8 +457,6 @@ input {
   pointer-events: none;
 }
 
-/* Sized in cqw (a fraction of the app width) so the whole simulation stays in
-   proportion as the frame scales. Reference is a 390pt-wide iPhone 12. */
 .device-chrome__notch {
   --notch-ink: #000;
   --fillet: 1.9cqw;
@@ -405,8 +474,6 @@ input {
   border-bottom-right-radius: 4.9cqw;
 }
 
-/* Concave fillets where the notch meets the top edge, so it reads as the bezel
-   dipping in rather than a floating island. */
 .device-chrome__notch::before,
 .device-chrome__notch::after {
   content: '';
@@ -465,18 +532,17 @@ input {
   }
 
   #root {
-    /* iPhone 12 safe-area insets, which the browser reports as zero here.
-       Expressed as percentages of the frame so they scale with it — percentage
-       padding resolves against width, which is what makes it work top/bottom. */
-    --safe-t: 5.6%;
-    --safe-b: 3.9%;
+    /* iPhone 12 safe-area insets (47pt top, 34pt bottom of a 390pt-wide
+       frame), which the browser reports as zero here. Percentages of the
+       frame, so they scale with it — percentage padding resolves on width. */
+    --safe-t: 12.05%;
+    --safe-b: 8.72%;
     --safe-l: 0px;
     --safe-r: 0px;
 
     height: min(844px, calc(100dvh - 40px));
     aspect-ratio: 390 / 844;
     max-width: calc(100vw - 40px);
-    /* 44pt corners, kept circular as the frame scales. */
     border-radius: 11.3% / 5.21%;
     overflow: hidden;
     box-shadow:

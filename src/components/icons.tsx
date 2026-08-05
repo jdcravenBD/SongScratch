@@ -24,8 +24,8 @@ export function SearchIcon({ size = 17, className }: IconProps) {
   );
 }
 
-/** Compose / new — the square-with-pencil from Notes. */
-export function ComposeIcon({ size = 22, className }: IconProps) {
+/** New song — a clean pencil. */
+export function ComposeIcon({ size = 21, className }: IconProps) {
   return (
     <svg
       className={className}
@@ -39,9 +39,8 @@ export function ComposeIcon({ size = 22, className }: IconProps) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M5 20V8a2 2 0 0 1 2-2h5" />
-      <path d="M5 20h8" />
-      <path d="M14.5 4.5l5 5L11 18l-5 1 1-5 7.5-7.5a1.77 1.77 0 0 1 2.5 0z" />
+      <path d="M4 20.5l4.2-1.1L19 8.6a2.05 2.05 0 0 0-2.9-2.9L5.1 16.4 4 20.5z" />
+      <path d="M14.6 7.2l2.9 2.9" />
     </svg>
   );
 }
