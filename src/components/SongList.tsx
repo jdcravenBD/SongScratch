@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSongs } from '../hooks/useSongs';
+import ScrollArea from './ScrollArea';
 import SongRow from './SongRow';
 import { ComposeIcon, SearchIcon } from './icons';
 
@@ -123,7 +124,7 @@ export default function SongList() {
         )}
       </header>
 
-      <main className="list-area">
+      <ScrollArea>
         {filtered === null ? null : filtered.length === 0 ? (
           <div className="empty">
             <p className="empty__title">
@@ -153,7 +154,7 @@ export default function SongList() {
             ))}
           </ul>
         )}
-      </main>
+      </ScrollArea>
 
       {selectMode ? (
         <div className="bottombar bottombar--actions">

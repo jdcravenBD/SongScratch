@@ -22,8 +22,6 @@
   --glass-bg-strong: rgba(255, 255, 255, 0.12);
   --glass-border: rgba(255, 255, 255, 0.16);
   --glass-blur: blur(20px) saturate(150%);
-  --bar-frost: rgba(10, 10, 12, 0.82); /* the floating bottom bar itself */
-  --bar-blur: blur(28px) saturate(140%);
 
   /* Text */
   --text: #ffffff;
@@ -102,6 +100,14 @@ input {
   container-name: app;
   background: var(--bg);
   overflow: hidden;
+  /* Dragging the list with a mouse shouldn't select text. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.search__input {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Fills the frame. The bottom bar floats over the list, so only the top and
@@ -180,13 +186,74 @@ input {
 
 /* ----------------------------------------------------------------- list -- */
 
-.list-area {
+.scroll {
+  position: relative;
   flex: 1 1 auto;
+  min-height: 0;
+}
+
+.scroll__viewport {
+  height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* Rows run full-bleed (text inset by --edge); bottom padding clears the
-     floating bar so the last row can scroll past it. */
-  padding: 6px var(--safe-r) calc(84px + var(--safe-b)) var(--safe-l);
+  scrollbar-width: none; /* Firefox — we draw our own handle */
+  /* Rows run full-bleed (text inset by --edge). Extra bottom room so the last
+     row can clear the bottom fade. */
+  padding: 6px var(--safe-r) 40px var(--safe-l);
+}
+
+.scroll__viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.scroll__content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Blur-and-fade-to-black edges. Shown only on the side with more to reveal
+   (opacity driven from JS by scroll position). */
+.scroll__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  background: #000;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  transition: opacity 0.15s ease;
+}
+
+.scroll__fade--top {
+  top: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+  mask-image: linear-gradient(to bottom, #000, transparent);
+}
+
+.scroll__fade--bottom {
+  bottom: 0;
+  -webkit-mask-image: linear-gradient(to top, #000, transparent);
+  mask-image: linear-gradient(to top, #000, transparent);
+}
+
+/* Thin, handle-only scrollbar. Visibility is toggled from JS. */
+.scroll__bar {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 3px;
+  height: 28px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.45);
+  opacity: 0;
+  z-index: 3;
+  pointer-events: none;
 }
 
 /* No card background any more — songs sit straight on black, divided only by
@@ -318,7 +385,7 @@ input {
 /* --------------------------------------------------------- empty state -- */
 
 .empty {
-  height: 100%;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -341,22 +408,18 @@ input {
   color: var(--text-tertiary);
 }
 
-/* --------------------------------------------- floating frosted bottom bar -- */
+/* ---------------------------------------------------- floating bottom controls -- */
 
+/* No background panel — the search field and New Song button just float over
+   the list at the bottom of the app. Kept in flow so the list never overlaps
+   them. */
 .bottombar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px calc(16px + var(--safe-r)) calc(12px + var(--safe-b))
-    calc(16px + var(--safe-l));
-  background: var(--bar-frost);
-  backdrop-filter: var(--bar-blur);
-  -webkit-backdrop-filter: var(--bar-blur);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px calc(var(--edge) + var(--safe-r)) calc(12px + var(--safe-b))
+    calc(var(--edge) + var(--safe-l));
 }
 
 /* Fully rounded (pill) frosted search field, with a solid-white magnifier. */
