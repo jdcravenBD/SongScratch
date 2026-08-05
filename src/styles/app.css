@@ -1,0 +1,101 @@
+/**
+ * Song Scratch design tokens + baseline.
+ *
+ * The whole app is black background, white text, grey for secondary detail
+ * (dates, hints, metadata) — deliberately close to iOS Notes and Voice Memos.
+ * Everything downstream should read from these variables rather than hard-code
+ * colours or sizes, so the look stays consistent as screens are added.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #000000;
+  --bg-elevated: #1c1c1e; /* grouped cells / sheets, iOS "systemGray6" dark */
+  --separator: #38383a; /* hairline dividers */
+
+  /* Text */
+  --text: #ffffff; /* primary */
+  --text-secondary: #8e8e93; /* dates, metadata, captions — iOS secondary grey */
+  --text-tertiary: #636366; /* placeholders, disabled */
+
+  /* Accent — kept minimal; iOS red for the record affordance later */
+  --accent: #ffffff;
+  --record: #ff453a;
+
+  /* Type scale (roughly maps to the lyric-screen hierarchy) */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui,
+    sans-serif;
+  --fs-title: 28px; /* song title */
+  --fs-subhead: 20px; /* tuning */
+  --fs-heading: 22px; /* section headers (Verse, Chorus…) */
+  --fs-body: 17px; /* lyrics, description, chords */
+  --fs-detail: 13px; /* dates / secondary metadata */
+
+  /* Spacing + shape */
+  --radius: 12px;
+  --gap: 16px;
+
+  /* Safe-area insets, so content clears the notch and home indicator */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Stop the whole page rubber-banding on iOS; scroll lives inside panes. */
+  overscroll-behavior: none;
+}
+
+/* ------------------------------------------------------ scaffold placeholder */
+
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: calc(var(--safe-top) + 24px) calc(var(--safe-right) + 24px)
+    calc(var(--safe-bottom) + 24px) calc(var(--safe-left) + 24px);
+}
+
+.wordmark {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-body);
+}
+
+.scaffold-note {
+  margin-top: 8px;
+  color: var(--text-tertiary);
+  font-size: var(--fs-detail);
+}

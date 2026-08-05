@@ -1,0 +1,29 @@
+{
+  "name": "song-scratch",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Song Scratch - a lightweight place to scratch down chord progressions, lyrics and voice notes, one save at a time.",
+  "scripts": {
+    "dev": "vite",
+    "host": "vite --host --mode https",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "phone": "npm run build && vite preview --host --mode https",
+    "icons": "node scripts/generate-icons.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^6.0.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5"
+  }
+}
