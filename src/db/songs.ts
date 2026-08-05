@@ -55,6 +55,13 @@ export async function putSong(song: Song): Promise<void> {
   await wrap(tx.objectStore(STORE).put(song));
 }
 
+export async function putSongs(songs: Song[]): Promise<void> {
+  const db = await openDB();
+  const tx = db.transaction(STORE, 'readwrite');
+  const store = tx.objectStore(STORE);
+  await Promise.all(songs.map((s) => wrap(store.put(s))));
+}
+
 export async function deleteSongs(ids: string[]): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(STORE, 'readwrite');

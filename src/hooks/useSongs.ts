@@ -6,6 +6,7 @@ import {
   getAllSongs,
   newSong,
   putSong,
+  putSongs,
 } from '../db/songs';
 
 const SEED_FLAG = 'ss-seeded';
@@ -16,9 +17,9 @@ const SEED_FLAG = 'ss-seeded';
  * again — the user is free to delete them.
  *
  * Memoised as one shared promise so React StrictMode's double-invoked effect
- * (and both effect passes) await the *same* seeding run rather than racing:
- * without this the second pass can read the store before the first pass's
- * writes commit and render an empty list.
+ * awaits the *same* seeding run rather than racing it: without this the second
+ * pass can read the store before the first pass's writes commit and render an
+ * empty list.
  */
 let seedPromise: Promise<void> | null = null;
 
@@ -33,34 +34,81 @@ async function doSeed(): Promise<void> {
   if ((await countSongs()) > 0) return;
 
   const now = Date.now();
+  const min = 60_000;
   const day = 86_400_000;
-  const demos: Song[] = [
+
+  const demos: Array<Partial<Song> & { title: string; updatedAt: number }> = [
     {
-      id: crypto.randomUUID(),
+      title: 'Yellow Letter',
+      tuning: 'Open G',
+      description: 'unsealed, on a porch a letter sat',
+      pinned: true,
+      chordCount: 5,
+      sectionCount: 4,
+      voiceCount: 2,
+      updatedAt: now - 24 * min,
+    },
+    {
       title: 'Back Porch',
       tuning: 'Open G',
       description: 'Slow, fingerpicked. Verse idea only.',
-      createdAt: now - 5 * day,
-      updatedAt: now - 40 * 60_000,
+      chordCount: 4,
+      sectionCount: 1,
+      voiceCount: 1,
+      updatedAt: now - 3 * 60 * min,
     },
     {
-      id: crypto.randomUUID(),
+      title: 'Raindrop',
+      tuning: 'Standard',
+      description: 'being able to mask your emotions',
+      chordCount: 6,
+      sectionCount: 3,
+      updatedAt: now - day - 2 * 60 * min,
+    },
+    {
       title: 'Dropped',
       tuning: 'Drop D',
       description: 'Heavier chorus — needs a bridge.',
-      createdAt: now - 3 * day,
-      updatedAt: now - day,
+      chordCount: 3,
+      sectionCount: 2,
+      voiceCount: 4,
+      updatedAt: now - 3 * day,
     },
     {
-      id: crypto.randomUUID(),
-      title: 'Untitled',
-      tuning: 'Standard',
-      description: '',
-      createdAt: now - 9 * day,
+      title: 'Spring',
+      tuning: 'DADGAD',
+      description: 'written in the style of eyes without a face',
+      sectionCount: 2,
       updatedAt: now - 5 * day,
     },
+    {
+      title: 'Bread',
+      tuning: 'Standard',
+      description: 'verse 1:',
+      chordCount: 4,
+      updatedAt: now - 12 * day,
+    },
+    {
+      title: 'Underneath the Sun',
+      tuning: 'Half step down',
+      description: "broken tree's the autumn's turned",
+      chordCount: 7,
+      sectionCount: 5,
+      voiceCount: 1,
+      updatedAt: now - 46 * day,
+    },
+    {
+      title: '',
+      tuning: 'Standard',
+      updatedAt: now - 74 * day,
+    },
   ];
-  await Promise.all(demos.map(putSong));
+
+  await putSongs(
+    demos.map((d) =>
+      newSong({ ...d, createdAt: d.updatedAt - day, updatedAt: d.updatedAt }),
+    ),
+  );
 }
 
 export interface SongsApi {
@@ -69,6 +117,8 @@ export interface SongsApi {
   createSong: () => Promise<string>;
   deleteSongs: (ids: string[]) => Promise<void>;
   duplicateSongs: (ids: string[]) => Promise<void>;
+  /** Pins or unpins every id; `pinned` omitted flips each one. */
+  setPinned: (ids: string[], pinned?: boolean) => Promise<void>;
 }
 
 export function useSongs(): SongsApi {
@@ -115,14 +165,29 @@ export function useSongs(): SongsApi {
           ...s,
           id: crypto.randomUUID(),
           title: s.title ? `${s.title} copy` : '',
+          pinned: false,
           createdAt: now,
           updatedAt: now,
         }));
-      await Promise.all(copies.map(putSong));
+      await putSongs(copies);
       await refresh();
     },
     [refresh],
   );
 
-  return { songs, createSong, deleteSongs, duplicateSongs };
+  const setPinned = useCallback(
+    async (ids: string[], pinned?: boolean) => {
+      const current = await getAllSongs();
+      const next = current
+        .filter((s) => ids.includes(s.id))
+        // Pinning is not an edit to the song, so updatedAt is left alone —
+        // otherwise pinning would reshuffle the date sections underneath.
+        .map<Song>((s) => ({ ...s, pinned: pinned ?? !s.pinned }));
+      await putSongs(next);
+      await refresh();
+    },
+    [refresh],
+  );
+
+  return { songs, createSong, deleteSongs, duplicateSongs, setPinned };
 }

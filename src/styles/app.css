@@ -1,55 +1,59 @@
-/**
- * Song Scratch design system.
- *
- * Black background, white text, grey for secondary detail — modelled on iOS
- * Notes / Voice Memos, but with plain frosted glass in place of iOS's liquid
- * glass. On desktop the app is drawn inside an iPhone 12 frame so it previews
- * at phone proportions; on a real phone the frame melts away and it fills the
- * screen with the OS's own safe-area insets.
- */
+/* ==========================================================================
+   Song Scratch — design system
+   --------------------------------------------------------------------------
+   Pure black, white type, grey for anything secondary. The look is iOS Notes /
+   Voice Memos: no panels, no borders around content, no colour except a single
+   red for destructive actions. Depth comes from blur and from what fades out,
+   not from boxes.
+
+   On desktop the whole app is drawn inside an iPhone 12 frame so it previews at
+   the proportions it will be held at; on a phone the frame melts away and the
+   OS supplies real safe-area insets.
+   ========================================================================== */
 
 :root {
   color-scheme: dark;
 
-  /* Surfaces */
+  /* --- surfaces ---------------------------------------------------------- */
   --bg: #000000;
-  --bg-pressed: rgba(255, 255, 255, 0.14);
-  --row-hover: rgba(255, 255, 255, 0.07); /* fades in behind a hovered song */
-  --separator: rgba(84, 84, 88, 0.55);
+  /* Interactive fills. All white-alpha so they read as light on the glass
+     rather than as a grey object sitting on black. */
+  --fill: rgba(255, 255, 255, 0.08);
+  --fill-hi: rgba(255, 255, 255, 0.13);
+  --fill-press: rgba(255, 255, 255, 0.2);
+  --row-hover: rgba(255, 255, 255, 0.06);
+  --hairline: rgba(255, 255, 255, 0.13);
+  --stroke: rgba(255, 255, 255, 0.16);
 
-  /* Frosted glass — translucent white with a blur, for defined controls. */
-  --glass-bg: rgba(255, 255, 255, 0.09);
-  --glass-bg-strong: rgba(255, 255, 255, 0.12);
-  --glass-border: rgba(255, 255, 255, 0.16);
-  --glass-blur: blur(20px) saturate(150%);
-
-  /* Text */
+  /* --- ink --------------------------------------------------------------- */
   --text: #ffffff;
-  --text-secondary: #98989f;
-  --text-tertiary: #6b6b70;
-
-  --tint: #ffffff; /* interactive text */
+  --text-2: #9a9aa1; /* dates, previews, counts */
+  --text-3: #6a6a70; /* placeholders, disabled */
   --danger: #ff453a;
 
-  /* Type. -apple-system first so real iPhones use SF (the actual Notes font);
+  /* --- type -------------------------------------------------------------- */
+  /* -apple-system first so a real iPhone uses SF, the actual Notes face;
      everywhere else falls to bundled Inter, its closest open match. */
-  --font: -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Segoe UI',
-    system-ui, sans-serif;
-  --fs-large-title: 32px;
-  --fs-title: 28px;
-  --fs-subhead: 20px;
-  --fs-heading: 22px;
-  --fs-body: 17px;
-  --fs-detail: 13px;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Segoe UI', system-ui,
+    sans-serif;
+  --fs-hero: 34px;
+  --fs-nav: 17px;
+  --fs-group: 17px;
+  --fs-row: 16px;
+  --fs-meta: 13px;
+  --fs-micro: 11px;
 
-  --radius: 12px;
-  --radius-pill: 999px;
-
-  /* Single left inset shared by the title, song text and separators so they
-     line up. (~25% tighter than the old 20px.) */
+  /* --- metrics ----------------------------------------------------------- */
+  /* One left inset shared by the title, the group labels and every row, so a
+     single vertical line runs down the whole screen. */
   --edge: 15px;
+  --nav-h: 50px;
+  --dock-h: 62px;
+  --pill: 999px;
 
-  /* Safe-area insets. Real on a phone; overridden inside the desktop frame. */
+  --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+
+  /* Safe areas. Real on a phone; overridden inside the desktop frame. */
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
@@ -71,7 +75,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: var(--fs-body);
+  font-size: var(--fs-row);
   line-height: 1.35;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -91,7 +95,7 @@ input {
   font: inherit;
 }
 
-/* ------------------------------------------------------------------ shell -- */
+/* --------------------------------------------------------------- the shell -- */
 
 .app {
   position: relative;
@@ -100,18 +104,11 @@ input {
   container-name: app;
   background: var(--bg);
   overflow: hidden;
-  /* Dragging the list with a mouse shouldn't select text. */
+  /* Dragging the list with a mouse must not select text. */
   user-select: none;
   -webkit-user-select: none;
 }
 
-.search__input {
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-/* Fills the frame. The bottom bar floats over the list, so only the top and
-   side insets pad the screen; the bar carries the bottom inset itself. */
 .screen {
   position: absolute;
   inset: 0;
@@ -120,71 +117,125 @@ input {
   padding-top: var(--safe-t);
 }
 
-/* --------------------------------------------------------------- top bar -- */
+/* ------------------------------------------------------------------ nav bar --
+ * Sits over the list. Its backdrop is the list's top edge treatment: a blur
+ * that fades out downward (masked) with a black wash over it, so rows dissolve
+ * as they pass under rather than being cut off by a hard bar.
+ */
 
-.topbar {
-  flex: 0 0 auto;
-  padding: 4px calc(var(--edge) + var(--safe-r)) 6px calc(var(--edge) + var(--safe-l));
-}
-
-.topbar__row {
+.navbar {
+  --collapse: 0; /* 0 = hero title showing, 1 = handed over to this bar */
+  position: absolute;
+  top: var(--safe-t);
+  left: 0;
+  right: 0;
+  height: var(--nav-h);
+  z-index: 30;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  min-height: 40px;
   gap: 8px;
+  padding: 0 calc(var(--edge) + var(--safe-r)) 0 calc(var(--edge) + var(--safe-l));
+  pointer-events: none;
 }
 
-.topbar__slot {
+.navbar::before,
+.navbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The blur, faded out over the lower half so there's no visible seam. */
+.navbar::before {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+/* …and the fade to black over the top of it. */
+.navbar::after {
+  background: linear-gradient(
+    to bottom,
+    #000 30%,
+    rgba(0, 0, 0, 0.82) 62%,
+    transparent 100%
+  );
+}
+
+.navbar > * {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.navbar__slot {
+  flex: 1 1 0;
   display: flex;
-  align-items: center;
-  min-width: 44px;
+  min-width: 0;
 }
 
-.topbar__slot--right {
+.navbar__slot--end {
   justify-content: flex-end;
 }
 
-.topbar__title {
-  margin: 2px 0 0;
-  font-size: var(--fs-large-title);
-  font-weight: 900;
-  letter-spacing: -0.022em;
+/* The compact title only exists once the hero has scrolled away. */
+.navbar__title {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: var(--fs-nav);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  opacity: var(--collapse);
+  transform: translateY(calc((1 - var(--collapse)) * 7px));
+  pointer-events: none;
 }
 
-.topbar__subtitle {
-  margin: 2px 0 0;
-  color: var(--text-secondary);
-  font-size: var(--fs-detail);
-}
+/* --------------------------------------------------------------- pill chips -- */
 
-/* Frosted pill buttons — Select / Done / Select All. */
-.btn-text {
+.chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  color: var(--tint);
-  font-size: var(--fs-body);
-  padding: 9px 16px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 8px 15px;
+  border-radius: var(--pill);
+  background: var(--fill);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease;
+  transition:
+    background 0.16s ease,
+    transform 0.16s var(--ease);
 }
 
-.btn-text:hover {
-  background: var(--glass-bg-strong);
+.chip:hover {
+  background: var(--fill-hi);
 }
 
-.btn-text:active {
-  background: var(--bg-pressed);
+.chip:active {
+  background: var(--fill-press);
+  transform: scale(0.96);
 }
 
-/* ----------------------------------------------------------------- list -- */
+.chip--solid {
+  background: rgba(255, 255, 255, 0.92);
+  color: #000;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.chip--solid:hover {
+  background: #fff;
+}
+
+/* ------------------------------------------------------------------- scroll -- */
 
 .scroll {
   position: relative;
@@ -197,10 +248,9 @@ input {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox — we draw our own handle */
-  /* Rows run full-bleed (text inset by --edge). Extra bottom room so the last
-     row can clear the bottom fade. */
-  padding: 6px var(--safe-r) 40px var(--safe-l);
+  scrollbar-width: none; /* Firefox — we draw our own */
+  padding: var(--nav-h) var(--safe-r) calc(var(--dock-h) + var(--safe-b) + 16px)
+    var(--safe-l);
 }
 
 .scroll__viewport::-webkit-scrollbar {
@@ -214,60 +264,113 @@ input {
   min-height: 100%;
 }
 
-/* Blur-and-fade-to-black edges. Shown only on the side with more to reveal
-   (opacity driven from JS by scroll position). */
-.scroll__fade {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 40px;
-  z-index: 2;
-  opacity: 0;
-  pointer-events: none;
-  background: #000;
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
-  transition: opacity 0.15s ease;
-}
-
-.scroll__fade--top {
-  top: 0;
-  -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
-  mask-image: linear-gradient(to bottom, #000, transparent);
-}
-
-.scroll__fade--bottom {
-  bottom: 0;
-  -webkit-mask-image: linear-gradient(to top, #000, transparent);
-  mask-image: linear-gradient(to top, #000, transparent);
-}
-
-/* Thin, handle-only scrollbar. Visibility is toggled from JS. */
+/* Handle only — no track. Shown by JS the moment you scroll, faded out a
+   second after you stop. */
 .scroll__bar {
   position: absolute;
   top: 0;
-  right: 2px;
+  right: 2.5px;
   width: 3px;
-  height: 28px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.45);
+  height: 32px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.4);
   opacity: 0;
-  z-index: 3;
+  z-index: 25;
   pointer-events: none;
 }
 
-/* No card background any more — songs sit straight on black, divided only by
-   hairlines, with a rounded highlight that fades in on hover. */
-.card {
+/* --------------------------------------------------------------------- hero -- */
+
+.hero {
+  padding: 6px calc(var(--edge) + var(--safe-r)) 12px calc(var(--edge) + var(--safe-l));
+}
+
+.hero__title {
+  margin: 0;
+  font-size: var(--fs-hero);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.hero__count {
+  margin: 3px 0 0;
+  color: var(--text-2);
+  font-size: var(--fs-meta);
+}
+
+/* ------------------------------------------------------------------- groups -- */
+
+.group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticks just under the nav bar so you always know which stretch of time
+   you're looking at. Opaque, so rows pass cleanly behind it. */
+.group__label {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 5;
+  margin: 0;
+  padding: 14px calc(var(--edge) + var(--safe-r)) 6px calc(var(--edge) + var(--safe-l));
+  font-size: var(--fs-group);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  background: var(--bg);
+}
+
+.list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* --------------------------------------------------------------------- rows -- */
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .row {
   position: relative;
-  /* No background here — the red lives only in .row__delete. A full-row red
-     background bled through the frosted bar as a glow. */
+  animation: row-in 0.3s var(--ease) both;
+}
+
+/* The two swipe actions, sitting behind the row on either side. */
+.row__action {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.row__action--delete {
+  right: 0;
+  background: var(--danger);
+}
+
+.row__action--delete:active {
+  background: #d70015;
+}
+
+.row__action--pin {
+  left: 0;
+  background: #2c2c2e;
+}
+
+.row__action--pin:active {
+  background: #3a3a3c;
 }
 
 .row__fg {
@@ -275,25 +378,24 @@ input {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 9px var(--edge);
-  min-height: 52px;
-  background: var(--bg); /* opaque, so it hides the delete action when closed */
+  padding: 10px calc(var(--edge) + var(--safe-r)) 10px calc(var(--edge) + var(--safe-l));
+  min-height: 58px;
+  /* Opaque so the actions behind stay hidden until swiped. */
+  background: var(--bg);
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
   will-change: transform;
 }
 
-/* Hover highlight: a rounded, fully-beveled fill that fades in and out. Behind
-   the text (a ::before paints under the element's content). */
+/* Rounded highlight that fades in under the pointer. Drawn behind the text. */
 .row__fg::before {
   content: '';
   position: absolute;
-  inset: 2px calc(var(--edge) - 7px);
-  border-radius: 14px;
+  inset: 2px 8px;
+  border-radius: 13px;
   background: var(--row-hover);
   opacity: 0;
-  transition: opacity 0.18s ease;
+  transition: opacity 0.2s ease;
   pointer-events: none;
 }
 
@@ -305,58 +407,79 @@ input {
 
 .row__fg.is-pressing::before {
   opacity: 1;
+  background: var(--fill-hi);
 }
 
-/* Hairline separator between rows (not above the first), inset like iOS. Drawn
-   on top so it stays visible over the hover highlight. */
+/* Hairline between rows, inset to the shared edge. Sits above the highlight so
+   it stays legible, and is dropped on the first row of each group. */
 .row + .row .row__fg::after {
   content: '';
   position: absolute;
   top: 0;
-  left: var(--edge);
+  left: calc(var(--edge) + var(--safe-l));
   right: 12px;
   height: 1px;
-  background: var(--separator);
+  background: var(--hairline);
 }
 
+/* Selection dot slides the row's contents right as select mode opens. */
 .row__check {
-  position: relative;
-  z-index: 1;
   flex: 0 0 auto;
   display: flex;
+  align-items: center;
+  width: 0;
+  margin-right: 0;
+  opacity: 0;
+  overflow: hidden;
   color: var(--text);
-  margin-left: -2px;
+  transition:
+    width 0.26s var(--ease),
+    margin 0.26s var(--ease),
+    opacity 0.18s ease;
 }
 
-.row__text {
+.row__check.is-shown {
+  width: 21px;
+  margin-right: 12px;
+  opacity: 1;
+}
+
+.row__body {
   position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .row__title {
-  font-size: var(--fs-body);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-row);
   font-weight: 600;
-  color: var(--text);
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.row__pin {
+  flex: 0 0 auto;
+  color: var(--text-2);
+}
+
 .row__meta {
   display: flex;
   gap: 6px;
-  font-size: var(--fs-detail);
-  color: var(--text-secondary);
+  font-size: var(--fs-meta);
+  color: var(--text-2);
   white-space: nowrap;
   overflow: hidden;
 }
 
 .row__date {
-  color: var(--text-secondary);
   flex: 0 0 auto;
 }
 
@@ -365,24 +488,18 @@ input {
   text-overflow: ellipsis;
 }
 
-.row__delete {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 84px;
+/* Which of the three tabs this song actually has something in. */
+.row__tags {
+  position: relative;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #fff;
-  background: var(--danger);
+  gap: 9px;
+  margin-left: 12px;
+  color: var(--text-3);
 }
 
-.row__delete:active {
-  background: #d70015;
-}
-
-/* --------------------------------------------------------- empty state -- */
+/* --------------------------------------------------------------- empty state -- */
 
 .empty {
   flex: 1 1 auto;
@@ -392,54 +509,88 @@ input {
   justify-content: center;
   text-align: center;
   gap: 6px;
-  padding: 0 32px 60px;
+  padding: 0 40px 80px;
 }
 
 .empty__title {
   margin: 0;
-  font-size: var(--fs-subhead);
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .empty__hint {
   margin: 0;
-  font-size: var(--fs-detail);
-  color: var(--text-tertiary);
+  font-size: var(--fs-meta);
+  color: var(--text-2);
 }
 
-/* ---------------------------------------------------- floating bottom controls -- */
+/* --------------------------------------------------------------------- dock --
+ * The search field and New Song button float at the bottom with no panel behind
+ * them — just the mirror of the nav bar's treatment, so the list dissolves into
+ * black on its way past.
+ */
 
-/* No background panel — the search field and New Song button just float over
-   the list at the bottom of the app. Kept in flow so the list never overlaps
-   them. */
-.bottombar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px calc(var(--edge) + var(--safe-r)) calc(12px + var(--safe-b))
+.dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding: 10px calc(var(--edge) + var(--safe-r)) calc(10px + var(--safe-b))
     calc(var(--edge) + var(--safe-l));
 }
 
-/* Fully rounded (pill) frosted search field, with a solid-white magnifier. */
+.dock::before,
+.dock::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dock::before {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
+  mask-image: linear-gradient(to top, #000 55%, transparent);
+}
+
+.dock::after {
+  background: linear-gradient(to top, #000 34%, rgba(0, 0, 0, 0.82) 66%, transparent 100%);
+}
+
+.dock__bar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* Fully rounded frosted field, magnifier in solid white. */
 .search {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
+  min-width: 0;
+  height: 42px;
   padding: 0 14px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: var(--pill);
+  background: var(--fill);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  transition: background 0.16s ease;
+}
+
+.search:focus-within {
+  background: var(--fill-hi);
 }
 
 .search__icon {
   flex: 0 0 auto;
-  color: var(--text); /* fully white magnifier */
+  color: var(--text);
 }
 
 .search__input {
@@ -448,79 +599,140 @@ input {
   border: 0;
   background: none;
   color: var(--text);
+  font-size: 16px; /* 16px keeps iOS Safari from zooming on focus */
   outline: none;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .search__input::placeholder {
-  color: var(--text-secondary);
+  color: var(--text-2);
 }
 
-.search__input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-  appearance: none;
+.search__clear {
+  flex: 0 0 auto;
+  display: flex;
+  color: var(--text-3);
+  transition: color 0.15s ease;
 }
 
-/* New Song — a defined, fully-beveled (circular) frosted button. */
+.search__clear:hover {
+  color: var(--text-2);
+}
+
+/* Cancel is collapsed to nothing until the field is in use. max-width rather
+   than width so it can animate open without a hard-coded size. */
+.cancel {
+  flex: 0 0 auto;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 15px;
+  color: var(--text);
+  transition:
+    max-width 0.28s var(--ease),
+    opacity 0.2s ease,
+    margin 0.28s var(--ease);
+}
+
+.dock__bar.is-searching .cancel {
+  max-width: 90px;
+  opacity: 1;
+  margin-left: 12px;
+}
+
 .compose {
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-pill);
+  width: 42px;
+  height: 42px;
+  max-width: 42px;
+  margin-left: 12px;
+  overflow: hidden;
+  border-radius: var(--pill);
   color: var(--text);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  background: var(--fill);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease;
+  transition:
+    background 0.16s ease,
+    transform 0.16s var(--ease),
+    max-width 0.28s var(--ease),
+    margin 0.28s var(--ease),
+    opacity 0.2s ease;
 }
 
 .compose:hover {
-  background: var(--glass-bg-strong);
+  background: var(--fill-hi);
 }
 
 .compose:active {
-  background: var(--bg-pressed);
+  background: var(--fill-press);
+  transform: scale(0.94);
 }
 
-/* Select-mode action buttons: frosted pills, Delete in red. */
-.bottombar--actions {
-  justify-content: space-between;
+/* Out of the way while searching, so the field gets the whole width. */
+.dock__bar.is-searching .compose {
+  max-width: 0;
+  width: 0;
+  margin-left: 0;
+  padding: 0;
+  opacity: 0;
+  border-width: 0;
 }
 
-.action {
-  color: var(--tint);
-  font-size: var(--fs-body);
-  padding: 8px 18px;
-  border-radius: var(--radius-pill);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  transition: background 0.15s ease;
+/* ------------------------------------------------------------ select toolbar -- */
+
+.toolbar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  height: 42px;
 }
 
-.action:hover:not(:disabled) {
-  background: var(--glass-bg-strong);
+.tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1 1 0;
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  color: var(--text);
+  border-radius: 12px;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
 }
 
-.action:disabled {
-  color: var(--text-tertiary);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+.tool:hover:not(:disabled) {
+  background: var(--fill);
+}
+
+.tool:active:not(:disabled) {
+  background: var(--fill-hi);
+}
+
+.tool:disabled {
+  color: var(--text-3);
   cursor: default;
 }
 
-.action--danger {
+.tool--danger:not(:disabled) {
   color: var(--danger);
 }
 
-/* ============================================================ device frame ==
- * Desktop only: draw the app in an iPhone 12-shaped chassis (390x844) so a
- * browser tab shows the proportions you'd hold. On a phone none of this fires.
+/* ============================================================= device frame ==
+ * Desktop only: an iPhone 12 chassis (390x844) so the browser shows the app at
+ * the proportions it is actually held at. None of this fires on a phone.
  */
 
 .device-chrome {
@@ -548,6 +760,8 @@ input {
   border-bottom-right-radius: 4.9cqw;
 }
 
+/* Concave fillets where the notch meets the top edge, so it reads as the bezel
+   dipping in rather than as a floating island. */
 .device-chrome__notch::before,
 .device-chrome__notch::after {
   content: '';
@@ -578,7 +792,7 @@ input {
 .device-chrome__speaker {
   width: 10.8cqw;
   height: 1.3cqw;
-  border-radius: 999px;
+  border-radius: var(--pill);
   background: #14161a;
   box-shadow:
     inset 0 1px 2px rgba(0, 0, 0, 0.9),
@@ -592,7 +806,7 @@ input {
   transform: translateX(-50%);
   width: 34.4cqw;
   height: 1.3cqw;
-  border-radius: 999px;
+  border-radius: var(--pill);
   background: var(--text);
   opacity: 0.5;
 }
@@ -606,11 +820,15 @@ input {
   }
 
   #root {
-    /* iPhone 12 safe-area insets (47pt top, 34pt bottom of a 390pt-wide
-       frame), which the browser reports as zero here. Percentages of the
-       frame, so they scale with it — percentage padding resolves on width. */
-    --safe-t: 12.05%;
-    --safe-b: 8.72%;
+    /* The iPhone 12's own safe-area insets (47pt top, 34pt bottom of a 390pt
+       frame), which a desktop browser reports as zero.
+       In `cqw` — a fraction of the app's width — rather than percentages, so
+       they scale with the frame *and* mean the same thing whatever property
+       consumes them. A percentage would silently resolve against height in
+       `top` and against width in `padding`, which put the nav bar 55px lower
+       than the padding that was supposed to clear it. */
+    --safe-t: 12.05cqw;
+    --safe-b: 8.72cqw;
     --safe-l: 0px;
     --safe-r: 0px;
 

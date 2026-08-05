@@ -2,82 +2,106 @@ import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Song } from '../types';
 import { formatWhen } from '../lib/format';
-import { SelectDot, TrashIcon } from './icons';
+import { ChordIcon, LyricsIcon, PinIcon, SelectDot, TrashIcon, VoiceIcon } from './icons';
 
-/** Width of the delete affordance revealed on a left-swipe. */
-const REVEAL = 84;
-/** Movement past which a press is treated as a drag, not a tap or hold. */
+/** How far a row slides to park its action open. */
+const REVEAL = 78;
+/** Movement past which a press is a drag rather than a tap or a hold. */
 const SLOP = 8;
 /** Hold this long without moving to enter multi-select. */
-const LONG_MS = 500;
+const LONG_MS = 450;
+/** Fraction of the row's width that turns a swipe into a committed action. */
+const COMMIT = 0.42;
 
 interface Props {
   song: Song;
+  index: number;
   selectMode: boolean;
   selected: boolean;
-  /** True when another row is the open one, so this one should snap shut. */
+  /** True when a different row is the open one, so this one snaps shut. */
   forceClosed: boolean;
   onOpen: (id: string) => void;
   onToggleSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
   onLongPress: (id: string) => void;
   onReveal: (id: string | null) => void;
 }
 
+/**
+ * One song in the list.
+ *
+ * Gestures run on Pointer Events so a mouse behaves like a finger without a
+ * second code path: swipe left for Delete, right for Pin (carry either past
+ * ~40% of the row to commit it outright), press and hold to start selecting,
+ * tap to open. A vertical drag is handed straight back to the list so the
+ * scroll underneath still works.
+ */
 export default function SongRow({
   song,
+  index,
   selectMode,
   selected,
   forceClosed,
   onOpen,
   onToggleSelect,
   onDelete,
+  onTogglePin,
   onLongPress,
   onReveal,
 }: Props) {
   const fg = useRef<HTMLDivElement>(null);
   const start = useRef({ x: 0, y: 0 });
-  const base = useRef(0); // translate at gesture start (0 or -REVEAL)
-  const dx = useRef(0); // live translate
+  const base = useRef(0);
+  /**
+   * How far the finger has actually travelled. Kept apart from the drawn
+   * offset: the row resists once it's dragged well past its parked position,
+   * and testing that damped number against the commit threshold would mean a
+   * full swipe could never reach it.
+   */
+  const rawX = useRef(0);
   const axis = useRef<'none' | 'x' | 'y'>('none');
   const pid = useRef<number | null>(null);
-  const longTimer = useRef<number | null>(null);
+  const longTimer = useRef(0);
   const longFired = useRef(false);
   const moved = useRef(false);
 
-  const [revealed, setRevealed] = useState(false);
+  const [open, setOpen] = useState<'none' | 'pin' | 'delete'>('none');
   const [pressing, setPressing] = useState(false);
 
-  const translate = (x: number, animate: boolean) => {
+  const slide = (x: number, animate: boolean) => {
     const el = fg.current;
     if (!el) return;
-    el.style.transition = animate
-      ? 'transform 0.24s cubic-bezier(0.22,0.61,0.36,1)'
-      : 'none';
-    el.style.transform = `translateX(${x}px)`;
-    dx.current = x;
+    el.style.transition = animate ? 'transform 0.32s cubic-bezier(0.2,0.9,0.3,1)' : 'none';
+    el.style.transform = x === 0 ? '' : `translate3d(${x}px,0,0)`;
   };
 
-  // Close when another row opens, or when select mode turns on.
+  const close = (notify = true) => {
+    setOpen('none');
+    slide(0, true);
+    if (notify) onReveal(null);
+  };
+
+  // Snap shut when another row opens, or when select mode starts.
   useEffect(() => {
-    if ((forceClosed || selectMode) && revealed) {
-      setRevealed(false);
-      translate(0, true);
+    if ((forceClosed || selectMode) && open !== 'none') {
+      setOpen('none');
+      slide(0, true);
     }
-  }, [forceClosed, selectMode, revealed]);
+  }, [forceClosed, selectMode, open]);
 
   const clearLong = () => {
-    if (longTimer.current != null) {
+    if (longTimer.current) {
       clearTimeout(longTimer.current);
-      longTimer.current = null;
+      longTimer.current = 0;
     }
   };
 
   const onPointerDown = (e: ReactPointerEvent) => {
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     pid.current = e.pointerId;
     start.current = { x: e.clientX, y: e.clientY };
-    base.current = revealed ? -REVEAL : 0;
+    base.current = open === 'delete' ? -REVEAL : open === 'pin' ? REVEAL : 0;
     axis.current = 'none';
     moved.current = false;
     longFired.current = false;
@@ -109,11 +133,10 @@ export default function SongRow({
           try {
             fg.current?.setPointerCapture(e.pointerId);
           } catch {
-            /* pointer already released, or a synthetic event — fine */
+            /* pointer already gone — nothing to capture */
           }
         } else {
-          // Vertical (a scroll) or a move in select mode: bow out and let the
-          // list scroll natively.
+          // Vertical, or any drag while selecting: let the list scroll.
           axis.current = 'y';
           setPressing(false);
           pid.current = null;
@@ -123,11 +146,14 @@ export default function SongRow({
 
     if (axis.current === 'x') {
       e.preventDefault();
-      let x = base.current + ddx;
-      if (x > 0) x *= 0.3; // rubber-band past closed
-      const floor = -REVEAL - 48;
-      if (x < floor) x = floor + (x - floor) * 0.3;
-      translate(x, false);
+      const x = base.current + ddx;
+      rawX.current = x;
+      // Resist past the parked position so the row feels tethered. Visual only.
+      const limit = REVEAL + 60;
+      slide(
+        Math.abs(x) > limit ? Math.sign(x) * (limit + (Math.abs(x) - limit) * 0.25) : x,
+        false,
+      );
     }
   };
 
@@ -136,36 +162,36 @@ export default function SongRow({
     pid.current = null;
     clearLong();
     setPressing(false);
-    const wasX = axis.current === 'x';
+    const swiped = axis.current === 'x';
     axis.current = 'none';
 
-    if (!wasX) {
-      // A tap: ignore if it was really a hold or a scroll.
-      if (!longFired.current && !moved.current) {
-        if (selectMode) onToggleSelect(song.id);
-        else if (revealed) {
-          setRevealed(false);
-          translate(0, true);
-          onReveal(null);
-        } else {
-          onOpen(song.id);
-        }
-      }
+    if (!swiped) {
+      if (longFired.current || moved.current) return;
+      if (selectMode) onToggleSelect(song.id);
+      else if (open !== 'none') close();
+      else onOpen(song.id);
       return;
     }
 
-    const rowW = fg.current?.offsetWidth ?? 320;
-    if (-dx.current > rowW * 0.5) {
-      translate(-rowW, true); // full swipe → delete
-      window.setTimeout(() => onDelete(song.id), 190);
-    } else if (-dx.current > REVEAL * 0.5) {
-      setRevealed(true);
-      translate(-REVEAL, true);
+    const width = fg.current?.offsetWidth ?? 320;
+    const x = rawX.current;
+
+    if (x < -width * COMMIT) {
+      slide(-width, true); // carried far enough left — delete outright
+      window.setTimeout(() => onDelete(song.id), 200);
+    } else if (x > width * COMMIT) {
+      onTogglePin(song.id); // carried far enough right — pin outright
+      close();
+    } else if (x < -REVEAL * 0.55) {
+      setOpen('delete');
+      slide(-REVEAL, true);
+      onReveal(song.id);
+    } else if (x > REVEAL * 0.55) {
+      setOpen('pin');
+      slide(REVEAL, true);
       onReveal(song.id);
     } else {
-      setRevealed(false);
-      translate(0, true);
-      onReveal(null);
+      close();
     }
   };
 
@@ -175,16 +201,38 @@ export default function SongRow({
     clearLong();
     setPressing(false);
     axis.current = 'none';
-    setRevealed(false);
-    translate(0, true);
-    onReveal(null);
+    close();
   };
 
+  const tags = [
+    song.chordCount ? <ChordIcon key="c" /> : null,
+    song.sectionCount ? <LyricsIcon key="l" /> : null,
+    song.voiceCount ? <VoiceIcon key="v" /> : null,
+  ].filter(Boolean);
+
   return (
-    <li className="row">
+    <li
+      className="row"
+      // Cheap staggered entrance; capped so a long list never crawls in.
+      style={{ animationDelay: `${Math.min(index, 12) * 22}ms` }}
+    >
       <button
-        className="row__delete"
+        className="row__action row__action--pin"
         type="button"
+        tabIndex={open === 'pin' ? 0 : -1}
+        aria-label={song.pinned ? `Unpin ${song.title || 'song'}` : `Pin ${song.title || 'song'}`}
+        onClick={() => {
+          onTogglePin(song.id);
+          close();
+        }}
+      >
+        <PinIcon />
+      </button>
+
+      <button
+        className="row__action row__action--delete"
+        type="button"
+        tabIndex={open === 'delete' ? 0 : -1}
         aria-label={`Delete ${song.title || 'song'}`}
         onClick={() => onDelete(song.id)}
       >
@@ -193,21 +241,21 @@ export default function SongRow({
 
       <div
         ref={fg}
-        className={`row__fg${pressing ? ' is-pressing' : ''}${
-          selectMode ? ' is-selecting' : ''
-        }`}
+        className={`row__fg${pressing ? ' is-pressing' : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
       >
-        {selectMode && (
-          <span className={`row__check${selected ? ' is-on' : ''}`}>
-            <SelectDot on={selected} />
+        <span className={`row__check${selectMode ? ' is-shown' : ''}`}>
+          <SelectDot on={selected} />
+        </span>
+
+        <span className="row__body">
+          <span className="row__title">
+            {song.pinned && <PinIcon size={12} className="row__pin" />}
+            {song.title || 'New Song'}
           </span>
-        )}
-        <span className="row__text">
-          <span className="row__title">{song.title || 'New Song'}</span>
           <span className="row__meta">
             <span className="row__date">{formatWhen(song.updatedAt)}</span>
             <span className="row__preview">
@@ -215,6 +263,8 @@ export default function SongRow({
             </span>
           </span>
         </span>
+
+        {tags.length > 0 && <span className="row__tags">{tags}</span>}
       </div>
     </li>
   );
