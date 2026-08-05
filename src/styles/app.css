@@ -147,21 +147,9 @@ input {
   pointer-events: none;
 }
 
-/*
- * Blur only — no black wash. The list runs the full height of the screen and
- * stays visible under the bar; softening it is enough to keep the title and the
- * chips legible without walling the list off behind a header.
- */
-.navbar::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent);
-  mask-image: linear-gradient(to bottom, #000 58%, transparent);
-}
+/* The bar itself is only its controls — no plate, no backdrop of its own. What
+   sits behind it is the list's own top fade (see .fade), which belongs to the
+   list rather than to this bar. */
 
 .navbar > * {
   position: relative;
@@ -285,6 +273,127 @@ input {
   min-height: 100%;
 }
 
+/* ------------------------------------------------------------ edge fades --
+ * The list dissolving into black at both ends. Two things happen along the same
+ * ramp: a black gradient takes the text, and the blur behind it strengthens.
+ *
+ * The blur is built from five stacked layers rather than one. `backdrop-filter`
+ * only does a single fixed radius, so one layer can only ever be a uniform
+ * band with an edge to it. Each layer here is masked to a band nearer the
+ * screen edge and blurs what the layer beneath already blurred, so the radius
+ * compounds toward the edge and arrives with the gradient.
+ */
+
+.fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.fade--top {
+  top: 0;
+  height: calc(var(--safe-t) + var(--nav-h) + 12px);
+}
+
+.fade--bottom {
+  bottom: 0;
+  height: calc(var(--safe-b) + var(--dock-h) + 12px);
+}
+
+.fade__layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* Radius doubles per layer; each band starts 20% further toward the edge. */
+.fade--top .fade__layer:nth-child(1) {
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 20%);
+  mask-image: linear-gradient(to top, transparent 0%, #000 20%);
+}
+
+.fade--top .fade__layer:nth-child(2) {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  -webkit-mask-image: linear-gradient(to top, transparent 20%, #000 40%);
+  mask-image: linear-gradient(to top, transparent 20%, #000 40%);
+}
+
+.fade--top .fade__layer:nth-child(3) {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to top, transparent 40%, #000 60%);
+  mask-image: linear-gradient(to top, transparent 40%, #000 60%);
+}
+
+.fade--top .fade__layer:nth-child(4) {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(to top, transparent 60%, #000 80%);
+  mask-image: linear-gradient(to top, transparent 60%, #000 80%);
+}
+
+/* The black itself rides on the last layer, so it lands with the deepest blur. */
+.fade--top .fade__layer:nth-child(5) {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to top, transparent 80%, #000 100%);
+  mask-image: linear-gradient(to top, transparent 80%, #000 100%);
+}
+
+.fade--top::after,
+.fade--bottom::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.fade--top::after {
+  background: linear-gradient(to top, transparent 0%, #000 82%);
+}
+
+.fade--bottom .fade__layer:nth-child(1) {
+  backdrop-filter: blur(0.5px);
+  -webkit-backdrop-filter: blur(0.5px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 20%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 20%);
+}
+
+.fade--bottom .fade__layer:nth-child(2) {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 20%, #000 40%);
+  mask-image: linear-gradient(to bottom, transparent 20%, #000 40%);
+}
+
+.fade--bottom .fade__layer:nth-child(3) {
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 40%, #000 60%);
+  mask-image: linear-gradient(to bottom, transparent 40%, #000 60%);
+}
+
+.fade--bottom .fade__layer:nth-child(4) {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 60%, #000 80%);
+  mask-image: linear-gradient(to bottom, transparent 60%, #000 80%);
+}
+
+.fade--bottom .fade__layer:nth-child(5) {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 80%, #000 100%);
+  mask-image: linear-gradient(to bottom, transparent 80%, #000 100%);
+}
+
+.fade--bottom::after {
+  background: linear-gradient(to bottom, transparent 0%, #000 82%);
+}
+
 /* Handle only — no track. Shown by JS the moment you scroll, faded out a
    second after you stop. */
 .scroll__bar {
@@ -311,12 +420,15 @@ input {
   font-size: var(--fs-hero);
   font-weight: 800;
   letter-spacing: -0.03em;
+  line-height: 1.08;
 }
 
+/* Sits tight under the title — it reads as part of it, not as its own line. */
 .hero__count {
-  margin: 3px 0 0;
+  margin: 1px 0 0;
   color: var(--text-2);
   font-size: var(--fs-meta);
+  line-height: 1.2;
 }
 
 /* ------------------------------------------------------------------- groups -- */
@@ -360,20 +472,39 @@ input {
   animation: row-in 0.3s var(--ease) both;
 }
 
-/* The two swipe actions, sitting behind the row on either side. */
+/*
+ * The two swipe actions, behind the row on either side. Each is a fully rounded
+ * pill — the same shape language as the search field — that grows out of the
+ * edge as the row is dragged off it, rather than a full-height block that is
+ * simply uncovered. Width is driven from the gesture; see SongRow.
+ */
 .row__action {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 78px;
+  top: 50%;
+  height: 75%;
+  width: var(--reveal, 0px);
+  min-width: 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border-radius: var(--pill);
   color: #fff;
+  transform: translateY(-50%);
+  transition: width var(--reveal-ms, 0s) var(--ease);
+}
+
+/* The icon only appears once the pill is long enough to hold it, and fades
+   rather than snapping in. */
+.row__action svg {
+  flex: 0 0 auto;
+  opacity: var(--icon-op, 0);
+  transition: opacity 0.18s ease;
 }
 
 .row__action--delete {
-  right: 0;
+  right: 8px;
   background: var(--danger);
 }
 
@@ -382,12 +513,23 @@ input {
 }
 
 .row__action--pin {
-  left: 0;
-  background: #2c2c2e;
+  left: 8px;
+  background: #3a3a3c;
 }
 
 .row__action--pin:active {
-  background: #3a3a3c;
+  background: #48484a;
+}
+
+/* Only the side being dragged toward opens. */
+.row[data-swipe='pin'] .row__action--pin,
+.row[data-swipe='delete'] .row__action--delete {
+  width: var(--reveal, 0px);
+}
+
+.row:not([data-swipe='pin']) .row__action--pin,
+.row:not([data-swipe='delete']) .row__action--delete {
+  width: 0;
 }
 
 .row__fg {
@@ -404,27 +546,24 @@ input {
   will-change: transform;
 }
 
-/* Rounded highlight that fades in under the pointer. Drawn behind the text. */
+/*
+ * Rows take no hover highlight — pointing at a song shouldn't light it up. This
+ * is press feedback only, so a tap or the start of a long press still answers.
+ * (The chips, New Song and the toolbar keep their hover states.)
+ */
 .row__fg::before {
   content: '';
   position: absolute;
   inset: 2px 8px;
   border-radius: 13px;
-  background: var(--row-hover);
+  background: var(--fill-hi);
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
 }
 
-@media (hover: hover) {
-  .row__fg:hover::before {
-    opacity: 1;
-  }
-}
-
 .row__fg.is-pressing::before {
   opacity: 1;
-  background: var(--fill-hi);
 }
 
 /* Hairline between rows, inset to the shared edge. Sits above the highlight so
@@ -558,18 +697,7 @@ input {
     calc(var(--edge) + var(--safe-l));
 }
 
-/* Same treatment as the nav bar, mirrored: blur, no wash, so the list is still
-   there underneath the controls rather than ending at a footer. */
-.dock::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  -webkit-mask-image: linear-gradient(to top, #000 58%, transparent);
-  mask-image: linear-gradient(to top, #000 58%, transparent);
-}
+/* No plate here either — the list's bottom fade does the work. */
 
 .dock__bar {
   position: relative;

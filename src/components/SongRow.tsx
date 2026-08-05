@@ -12,6 +12,10 @@ const SLOP = 8;
 const LONG_MS = 450;
 /** Fraction of the row's width that turns a swipe into a committed action. */
 const COMMIT = 0.42;
+/** Gap the pill leaves between the screen edge and the row's moving edge. */
+const PILL_GAP = 14;
+/** Pill width at which there's room for the icon. */
+const ICON_AT = 40;
 
 interface Props {
   song: Song;
@@ -51,6 +55,7 @@ export default function SongRow({
   onReveal,
 }: Props) {
   const fg = useRef<HTMLDivElement>(null);
+  const host = useRef<HTMLLIElement>(null);
   const start = useRef({ x: 0, y: 0 });
   const base = useRef(0);
   /**
@@ -69,11 +74,24 @@ export default function SongRow({
   const [open, setOpen] = useState<'none' | 'pin' | 'delete'>('none');
   const [pressing, setPressing] = useState(false);
 
+  /**
+   * Moves the row and grows the action pill behind it to match. The pill tracks
+   * the gap the row opens up rather than being a fixed block that gets
+   * uncovered, so it reads as being drawn out of the edge.
+   */
   const slide = (x: number, animate: boolean) => {
     const el = fg.current;
     if (!el) return;
     el.style.transition = animate ? 'transform 0.32s cubic-bezier(0.2,0.9,0.3,1)' : 'none';
     el.style.transform = x === 0 ? '' : `translate3d(${x}px,0,0)`;
+
+    const li = host.current;
+    if (!li) return;
+    const pill = Math.max(0, Math.abs(x) - PILL_GAP);
+    li.dataset.swipe = x > 0 ? 'pin' : x < 0 ? 'delete' : 'none';
+    li.style.setProperty('--reveal', `${pill}px`);
+    li.style.setProperty('--reveal-ms', animate ? '0.32s' : '0s');
+    li.style.setProperty('--icon-op', pill >= ICON_AT ? '1' : '0');
   };
 
   const close = (notify = true) => {
@@ -213,6 +231,7 @@ export default function SongRow({
   return (
     <li
       className="row"
+      ref={host}
       // Cheap staggered entrance; capped so a long list never crawls in.
       style={{ animationDelay: `${Math.min(index, 12) * 22}ms` }}
     >

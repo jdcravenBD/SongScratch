@@ -88,7 +88,29 @@ export default function ScrollArea({ children, onScroll }: Props) {
           {children}
         </div>
       </div>
+      <Fade edge="top" />
+      <Fade edge="bottom" />
       <div className="scroll__bar" ref={bar} aria-hidden="true" />
+    </div>
+  );
+}
+
+/**
+ * The list's top and bottom edges: a black gradient that takes the text with it,
+ * over a blur that strengthens along the same ramp.
+ *
+ * A single `backdrop-filter` can only blur by one fixed radius, which is what
+ * makes a plate look like a plate. Stacking layers instead — each masked to a
+ * band nearer the edge, each blurring what the layer beneath already blurred —
+ * compounds toward the edge, so the blur arrives with the gradient rather than
+ * switching on at a seam.
+ */
+function Fade({ edge }: { edge: 'top' | 'bottom' }) {
+  return (
+    <div className={`fade fade--${edge}`} aria-hidden="true">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div className="fade__layer" key={i} />
+      ))}
     </div>
   );
 }
