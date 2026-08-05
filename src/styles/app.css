@@ -22,7 +22,8 @@
   --glass-bg-strong: rgba(255, 255, 255, 0.12);
   --glass-border: rgba(255, 255, 255, 0.16);
   --glass-blur: blur(20px) saturate(150%);
-  --bar-frost: rgba(12, 12, 14, 0.55); /* the floating bottom bar itself */
+  --bar-frost: rgba(10, 10, 12, 0.82); /* the floating bottom bar itself */
+  --bar-blur: blur(28px) saturate(140%);
 
   /* Text */
   --text: #ffffff;
@@ -32,9 +33,10 @@
   --tint: #ffffff; /* interactive text */
   --danger: #ff453a;
 
-  /* Type */
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui,
-    sans-serif;
+  /* Type. -apple-system first so real iPhones use SF (the actual Notes font);
+     everywhere else falls to bundled Inter, its closest open match. */
+  --font: -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Segoe UI',
+    system-ui, sans-serif;
   --fs-large-title: 32px;
   --fs-title: 28px;
   --fs-subhead: 20px;
@@ -44,6 +46,10 @@
 
   --radius: 12px;
   --radius-pill: 999px;
+
+  /* Single left inset shared by the title, song text and separators so they
+     line up. (~25% tighter than the old 20px.) */
+  --edge: 15px;
 
   /* Safe-area insets. Real on a phone; overridden inside the desktop frame. */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -112,7 +118,7 @@ input {
 
 .topbar {
   flex: 0 0 auto;
-  padding: 4px calc(20px + var(--safe-r)) 6px calc(20px + var(--safe-l));
+  padding: 4px calc(var(--edge) + var(--safe-r)) 6px calc(var(--edge) + var(--safe-l));
 }
 
 .topbar__row {
@@ -136,8 +142,8 @@ input {
 .topbar__title {
   margin: 2px 0 0;
   font-size: var(--fs-large-title);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 900;
+  letter-spacing: -0.022em;
 }
 
 .topbar__subtitle {
@@ -148,9 +154,13 @@ input {
 
 /* Frosted pill buttons — Select / Done / Select All. */
 .btn-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   color: var(--tint);
   font-size: var(--fs-body);
-  padding: 7px 16px;
+  padding: 9px 16px;
   border-radius: var(--radius-pill);
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
@@ -174,9 +184,9 @@ input {
   flex: 1 1 auto;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  /* Bottom padding clears the floating bar so the last row can scroll clear. */
-  padding: 6px calc(16px + var(--safe-r)) calc(84px + var(--safe-b))
-    calc(16px + var(--safe-l));
+  /* Rows run full-bleed (text inset by --edge); bottom padding clears the
+     floating bar so the last row can scroll past it. */
+  padding: 6px var(--safe-r) calc(84px + var(--safe-b)) var(--safe-l);
 }
 
 /* No card background any more — songs sit straight on black, divided only by
@@ -189,7 +199,8 @@ input {
 
 .row {
   position: relative;
-  background: var(--danger); /* revealed by a left-swipe */
+  /* No background here — the red lives only in .row__delete. A full-row red
+     background bled through the frosted bar as a glow. */
 }
 
 .row__fg {
@@ -198,8 +209,8 @@ input {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  min-height: 62px;
+  padding: 9px var(--edge);
+  min-height: 52px;
   background: var(--bg); /* opaque, so it hides the delete action when closed */
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
@@ -211,8 +222,8 @@ input {
 .row__fg::before {
   content: '';
   position: absolute;
-  inset: 3px 4px;
-  border-radius: 16px;
+  inset: 2px calc(var(--edge) - 7px);
+  border-radius: 14px;
   background: var(--row-hover);
   opacity: 0;
   transition: opacity 0.18s ease;
@@ -235,8 +246,8 @@ input {
   content: '';
   position: absolute;
   top: 0;
-  left: 16px;
-  right: 0;
+  left: var(--edge);
+  right: 12px;
   height: 1px;
   background: var(--separator);
 }
@@ -343,8 +354,8 @@ input {
   padding: 10px calc(16px + var(--safe-r)) calc(12px + var(--safe-b))
     calc(16px + var(--safe-l));
   background: var(--bar-frost);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--bar-blur);
+  -webkit-backdrop-filter: var(--bar-blur);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 

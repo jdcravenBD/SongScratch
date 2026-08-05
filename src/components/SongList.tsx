@@ -114,7 +114,7 @@ export default function SongList() {
             ? count === 0
               ? 'Select Songs'
               : `${count} Selected`
-            : 'Songs'}
+            : 'All Songs'}
         </h1>
         {!selectMode && songs && (
           <p className="topbar__subtitle">

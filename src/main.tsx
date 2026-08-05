@@ -1,6 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+// Inter, self-hosted — the closest open substitute for iOS's SF Pro, used on
+// platforms (e.g. Windows) that don't ship it. Real iPhones fall through to
+// -apple-system (SF) first. Bundled, so it still works offline.
+import '@fontsource-variable/inter';
 import './styles/app.css';
 
 const root = document.getElementById('root');
