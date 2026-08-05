@@ -92,6 +92,10 @@ export default function SongList() {
 
   const total = songs?.length ?? 0;
   const showingResults = !!query.trim();
+  /** Shared by the hero and the collapsed heading, so they never disagree. */
+  const countLabel = showingResults
+    ? `${matches?.length ?? 0} found`
+    : `${total} ${total === 1 ? 'Song' : 'Songs'}`;
 
   return (
     <div className={`screen${selectMode ? ' is-selecting' : ''}`}>
@@ -108,9 +112,12 @@ export default function SongList() {
           )}
         </div>
 
-        <h2 className="navbar__title">
-          {selectMode ? (count ? `${count} Selected` : 'Select Songs') : 'All Songs'}
-        </h2>
+        <div className="navbar__heading">
+          <h2 className="navbar__title">
+            {selectMode ? (count ? `${count} Selected` : 'Select Songs') : 'All Songs'}
+          </h2>
+          {!selectMode && <p className="navbar__count">{countLabel}</p>}
+        </div>
 
         <div className="navbar__slot navbar__slot--end">
           {selectMode ? (
@@ -132,11 +139,7 @@ export default function SongList() {
           <h1 className="hero__title">
             {selectMode ? (count ? `${count} Selected` : 'Select Songs') : 'All Songs'}
           </h1>
-          <p className="hero__count">
-            {showingResults
-              ? `${matches?.length ?? 0} found`
-              : `${total} ${total === 1 ? 'Song' : 'Songs'}`}
-          </p>
+          <p className="hero__count">{countLabel}</p>
         </div>
 
         {matches === null ? null : matches.length === 0 ? (

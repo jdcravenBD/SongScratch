@@ -37,7 +37,7 @@
   --font: -apple-system, BlinkMacSystemFont, 'Inter Variable', 'Segoe UI', system-ui,
     sans-serif;
   --fs-hero: 34px;
-  --fs-nav: 17px;
+  --fs-nav: 15px; /* the collapsed heading — smaller than the hero it replaces */
   --fs-group: 17px;
   --fs-row: 16px;
   --fs-meta: 13px;
@@ -109,12 +109,17 @@ input {
   -webkit-user-select: none;
 }
 
+/*
+ * No padding: the list occupies the whole screen and scrolls the full height of
+ * it, passing under the nav bar and the dock rather than stopping at either.
+ * Both of those inset the scroll *content* instead, so nothing starts life
+ * hidden.
+ */
 .screen {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding-top: var(--safe-t);
 }
 
 /* ------------------------------------------------------------------ nav bar --
@@ -126,42 +131,36 @@ input {
 .navbar {
   --collapse: 0; /* 0 = hero title showing, 1 = handed over to this bar */
   position: absolute;
-  top: var(--safe-t);
+  top: 0;
   left: 0;
   right: 0;
-  height: var(--nav-h);
+  /* Runs to the very top edge so its blur covers the status-bar strip too —
+     otherwise rows would surface unblurred either side of the notch. The safe
+     inset is padding, so the controls still sit clear of the hardware. */
+  height: calc(var(--safe-t) + var(--nav-h));
   z-index: 30;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 calc(var(--edge) + var(--safe-r)) 0 calc(var(--edge) + var(--safe-l));
+  padding: var(--safe-t) calc(var(--edge) + var(--safe-r)) 0
+    calc(var(--edge) + var(--safe-l));
   pointer-events: none;
 }
 
-.navbar::before,
-.navbar::after {
+/*
+ * Blur only — no black wash. The list runs the full height of the screen and
+ * stays visible under the bar; softening it is enough to keep the title and the
+ * chips legible without walling the list off behind a header.
+ */
+.navbar::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-}
-
-/* The blur, faded out over the lower half so there's no visible seam. */
-.navbar::before {
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
-  mask-image: linear-gradient(to bottom, #000 55%, transparent);
-}
-
-/* …and the fade to black over the top of it. */
-.navbar::after {
-  background: linear-gradient(
-    to bottom,
-    #000 30%,
-    rgba(0, 0, 0, 0.82) 62%,
-    transparent 100%
-  );
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent);
 }
 
 .navbar > * {
@@ -180,17 +179,39 @@ input {
   justify-content: flex-end;
 }
 
-/* The compact title only exists once the hero has scrolled away. */
-.navbar__title {
-  flex: 0 0 auto;
-  margin: 0;
-  font-size: var(--fs-nav);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
+/*
+ * The compact heading, centred between the two chip slots. It only exists once
+ * the hero title has scrolled away, and rises the last few pixels into place as
+ * it arrives rather than simply appearing.
+ */
+.navbar__heading {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.15;
   opacity: var(--collapse);
   transform: translateY(calc((1 - var(--collapse)) * 7px));
   pointer-events: none;
+}
+
+.navbar__title {
+  margin: 0;
+  font-size: var(--fs-nav);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Deliberately half-strength: it's a reference, not something to read. */
+.navbar__count {
+  margin: 1px 0 0;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+  opacity: 0.5;
 }
 
 /* --------------------------------------------------------------- pill chips -- */
@@ -201,9 +222,9 @@ input {
   justify-content: center;
   line-height: 1;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 13.5px;
   font-weight: 500;
-  padding: 8px 15px;
+  padding: 7px 14px;
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
@@ -249,8 +270,8 @@ input {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox — we draw our own */
-  padding: var(--nav-h) var(--safe-r) calc(var(--dock-h) + var(--safe-b) + 16px)
-    var(--safe-l);
+  padding: calc(var(--safe-t) + var(--nav-h)) var(--safe-r)
+    calc(var(--dock-h) + var(--safe-b) + 16px) var(--safe-l);
 }
 
 .scroll__viewport::-webkit-scrollbar {
@@ -305,18 +326,14 @@ input {
   flex-direction: column;
 }
 
-/* Sticks just under the nav bar so you always know which stretch of time
-   you're looking at. Opaque, so rows pass cleanly behind it. */
+/* Scrolls away with its songs — deliberately not sticky, and with no backing,
+   so nothing is pinned over the list as it moves. */
 .group__label {
-  position: sticky;
-  top: var(--nav-h);
-  z-index: 5;
   margin: 0;
   padding: 14px calc(var(--edge) + var(--safe-r)) 6px calc(var(--edge) + var(--safe-l));
   font-size: var(--fs-group);
   font-weight: 700;
   letter-spacing: -0.01em;
-  background: var(--bg);
 }
 
 .list {
@@ -541,23 +558,17 @@ input {
     calc(var(--edge) + var(--safe-l));
 }
 
-.dock::before,
-.dock::after {
+/* Same treatment as the nav bar, mirrored: blur, no wash, so the list is still
+   there underneath the controls rather than ending at a footer. */
+.dock::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-}
-
-.dock::before {
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent);
-  mask-image: linear-gradient(to top, #000 55%, transparent);
-}
-
-.dock::after {
-  background: linear-gradient(to top, #000 34%, rgba(0, 0, 0, 0.82) 66%, transparent 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  -webkit-mask-image: linear-gradient(to top, #000 58%, transparent);
+  mask-image: linear-gradient(to top, #000 58%, transparent);
 }
 
 .dock__bar {
