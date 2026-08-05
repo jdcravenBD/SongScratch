@@ -294,56 +294,66 @@ input {
 
 .fade--top {
   top: 0;
-  height: calc(var(--safe-t) + var(--nav-h) + 12px);
+  height: calc(var(--safe-t) + var(--nav-h) + 26px);
 }
 
 .fade--bottom {
   bottom: 0;
-  height: calc(var(--safe-b) + var(--dock-h) + 12px);
+  height: calc(var(--safe-b) + var(--dock-h) + 26px);
 }
 
+/*
+ * Every layer is anchored to the top edge and each is shorter than the last, so
+ * the strongest blur hugs the edge and the weakest reaches furthest down. The
+ * staggered *heights* are what make the ramp: a mask cannot be relied on to
+ * clip a backdrop-filter, so equal-sized layers dump their whole combined
+ * radius at one line — the hard seam this is written to avoid. Ending them at
+ * different depths means the only blur switching off at the lower boundary is
+ * the 0.4px one, which nobody can see.
+ *
+ * The masks stay as a second, softer ramp wherever the browser does honour
+ * them.
+ */
 .fade__layer {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  -webkit-mask-image: linear-gradient(to bottom, #000 35%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 35%, transparent 100%);
 }
 
-/* Radius doubles per layer; each band starts 20% further toward the edge. */
 .fade--top .fade__layer:nth-child(1) {
-  backdrop-filter: blur(0.5px);
-  -webkit-backdrop-filter: blur(0.5px);
-  -webkit-mask-image: linear-gradient(to top, transparent 0%, #000 20%);
-  mask-image: linear-gradient(to top, transparent 0%, #000 20%);
+  height: 100%;
+  backdrop-filter: blur(0.4px);
+  -webkit-backdrop-filter: blur(0.4px);
 }
 
 .fade--top .fade__layer:nth-child(2) {
+  height: 80%;
   backdrop-filter: blur(1px);
   -webkit-backdrop-filter: blur(1px);
-  -webkit-mask-image: linear-gradient(to top, transparent 20%, #000 40%);
-  mask-image: linear-gradient(to top, transparent 20%, #000 40%);
 }
 
 .fade--top .fade__layer:nth-child(3) {
+  height: 62%;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
-  -webkit-mask-image: linear-gradient(to top, transparent 40%, #000 60%);
-  mask-image: linear-gradient(to top, transparent 40%, #000 60%);
 }
 
 .fade--top .fade__layer:nth-child(4) {
+  height: 45%;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  -webkit-mask-image: linear-gradient(to top, transparent 60%, #000 80%);
-  mask-image: linear-gradient(to top, transparent 60%, #000 80%);
 }
 
-/* The black itself rides on the last layer, so it lands with the deepest blur. */
 .fade--top .fade__layer:nth-child(5) {
+  height: 28%;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(to top, transparent 80%, #000 100%);
-  mask-image: linear-gradient(to top, transparent 80%, #000 100%);
 }
 
+/* The black itself, over the top of the blur. */
 .fade--top::after,
 .fade--bottom::after {
   content: '';
@@ -352,46 +362,24 @@ input {
 }
 
 .fade--top::after {
-  background: linear-gradient(to top, transparent 0%, #000 82%);
+  background: linear-gradient(
+    to bottom,
+    #000 20%,
+    rgba(0, 0, 0, 0.88) 42%,
+    rgba(0, 0, 0, 0.45) 70%,
+    transparent 100%
+  );
 }
 
-.fade--bottom .fade__layer:nth-child(1) {
-  backdrop-filter: blur(0.5px);
-  -webkit-backdrop-filter: blur(0.5px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 20%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 20%);
-}
-
-.fade--bottom .fade__layer:nth-child(2) {
-  backdrop-filter: blur(1px);
-  -webkit-backdrop-filter: blur(1px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 20%, #000 40%);
-  mask-image: linear-gradient(to bottom, transparent 20%, #000 40%);
-}
-
-.fade--bottom .fade__layer:nth-child(3) {
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 40%, #000 60%);
-  mask-image: linear-gradient(to bottom, transparent 40%, #000 60%);
-}
-
-.fade--bottom .fade__layer:nth-child(4) {
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 60%, #000 80%);
-  mask-image: linear-gradient(to bottom, transparent 60%, #000 80%);
-}
-
-.fade--bottom .fade__layer:nth-child(5) {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 80%, #000 100%);
-  mask-image: linear-gradient(to bottom, transparent 80%, #000 100%);
-}
-
+/* Bottom edge is the gradient alone — no blur behind it. */
 .fade--bottom::after {
-  background: linear-gradient(to bottom, transparent 0%, #000 82%);
+  background: linear-gradient(
+    to top,
+    #000 20%,
+    rgba(0, 0, 0, 0.88) 42%,
+    rgba(0, 0, 0, 0.45) 70%,
+    transparent 100%
+  );
 }
 
 /* Handle only — no track. Shown by JS the moment you scroll, faded out a

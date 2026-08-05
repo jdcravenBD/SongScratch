@@ -88,29 +88,26 @@ export default function ScrollArea({ children, onScroll }: Props) {
           {children}
         </div>
       </div>
-      <Fade edge="top" />
-      <Fade edge="bottom" />
-      <div className="scroll__bar" ref={bar} aria-hidden="true" />
-    </div>
-  );
-}
+      {/*
+       * Top: a black gradient with a blur that ramps up underneath it. The five
+       * layers are stacked in *decreasing height* — the strongest blur is the
+       * shortest, hugging the edge — so each one ends at a different place.
+       *
+       * Height is what does the work, not the masks. A mask does not reliably
+       * clip a backdrop-filter, so five same-sized layers put their whole
+       * combined radius on at one line, which is the hard seam this replaces.
+       * Staggered, the only blur ending at the lower boundary is the faintest.
+       */}
+      <div className="fade fade--top" aria-hidden="true">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div className="fade__layer" key={i} />
+        ))}
+      </div>
 
-/**
- * The list's top and bottom edges: a black gradient that takes the text with it,
- * over a blur that strengthens along the same ramp.
- *
- * A single `backdrop-filter` can only blur by one fixed radius, which is what
- * makes a plate look like a plate. Stacking layers instead — each masked to a
- * band nearer the edge, each blurring what the layer beneath already blurred —
- * compounds toward the edge, so the blur arrives with the gradient rather than
- * switching on at a seam.
- */
-function Fade({ edge }: { edge: 'top' | 'bottom' }) {
-  return (
-    <div className={`fade fade--${edge}`} aria-hidden="true">
-      {[0, 1, 2, 3, 4].map((i) => (
-        <div className="fade__layer" key={i} />
-      ))}
+      {/* Bottom: gradient only, no blur. */}
+      <div className="fade fade--bottom" aria-hidden="true" />
+
+      <div className="scroll__bar" ref={bar} aria-hidden="true" />
     </div>
   );
 }
