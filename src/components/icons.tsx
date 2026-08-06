@@ -101,6 +101,77 @@ export function CloseIcon({ size = 16, className }: IconProps) {
   );
 }
 
+export function BackIcon({ size = 22, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className} strokeWidth={2.2}>
+      <path d="M15 4.5L7.5 12l7.5 7.5" />
+    </svg>
+  );
+}
+
+export function EllipsisIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <circle cx="5.5" cy="12" r="1.85" />
+      <circle cx="12" cy="12" r="1.85" />
+      <circle cx="18.5" cy="12" r="1.85" />
+    </svg>
+  );
+}
+
+export function UndoIcon({ size = 19, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M4 8.5h9.6a5.4 5.4 0 0 1 0 10.8H7" />
+      <path d="M7.6 4.6L3.7 8.5l3.9 3.9" />
+    </svg>
+  );
+}
+
+export function RedoIcon({ size = 19, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M20 8.5h-9.6a5.4 5.4 0 0 0 0 10.8H17" />
+      <path d="M16.4 4.6l3.9 3.9-3.9 3.9" />
+    </svg>
+  );
+}
+
+export function CheckIcon({ size = 19, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className} strokeWidth={2.4}>
+      <path d="M4.5 12.5l5 5 10-11" />
+    </svg>
+  );
+}
+
+/** Highlighter — a marker nib over its stroke. */
+export function HighlightIcon({ size = 19, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <path d="M8.4 14.6l-1.9 3.9 4.2-1.2 7.7-7.7a2.1 2.1 0 0 0-3-3l-7 8z" />
+      <path d="M4 21h16" strokeWidth={2.6} />
+    </svg>
+  );
+}
+
+/** Font colour — a swatch. */
+export function ColorIcon({ size = 19, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <circle cx="12" cy="12" r="8.2" />
+      <circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 /** Selection indicator for multi-select. Filled with a tick when `on`. */
 export function SelectDot({ on, size = 21 }: { on: boolean; size?: number }) {
   return (

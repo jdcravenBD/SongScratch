@@ -10,6 +10,8 @@ interface Props {
    * straight through a ref, so scrolling never re-renders the list.
    */
   onScroll?: (top: number) => void;
+  /** Off while text is being edited, where a drag has to mean "select". */
+  dragScroll?: boolean;
 }
 
 /**
@@ -21,13 +23,13 @@ interface Props {
  * The blur-and-fade edges are not here — they belong to the nav bar and the
  * dock, which sit over this and already have to blur what passes beneath them.
  */
-export default function ScrollArea({ children, onScroll }: Props) {
+export default function ScrollArea({ children, onScroll, dragScroll = true }: Props) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const hideTimer = useRef(0);
 
-  useDragScroll(viewport);
+  useDragScroll(viewport, dragScroll);
 
   useEffect(() => {
     const vp = viewport.current;

@@ -21,7 +21,7 @@ const COLLAPSE_TO = 52;
  * with search and a New Song button floating at the bottom and a Select mode
  * for acting on several at once.
  */
-export default function SongList() {
+export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
   const { songs, createSong, deleteSongs, duplicateSongs, setPinned } = useSongs();
 
   const [query, setQuery] = useState('');
@@ -164,7 +164,7 @@ export default function SongList() {
                     selectMode={selectMode}
                     selected={selected.has(song.id)}
                     forceClosed={openRowId !== null && openRowId !== song.id}
-                    onOpen={openSong}
+                    onOpen={onOpen}
                     onToggleSelect={toggle}
                     onDelete={(id) => {
                       setOpenRowId(null);
@@ -189,7 +189,7 @@ export default function SongList() {
                   selectMode={selectMode}
                   selected={selected.has(song.id)}
                   forceClosed={openRowId !== null && openRowId !== song.id}
-                  onOpen={openSong}
+                  onOpen={onOpen}
                   onToggleSelect={toggle}
                   onDelete={(id) => {
                     setOpenRowId(null);
@@ -294,10 +294,3 @@ export default function SongList() {
   );
 }
 
-/**
- * Opening a song lands on its Chords/Lyrics/Voice tabs — the screen built next.
- * Wired as a stub so the tap gesture is already in place.
- */
-function openSong(id: string) {
-  if (import.meta.env.DEV) console.info('open song', id);
-}

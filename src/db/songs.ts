@@ -49,6 +49,12 @@ export async function getAllSongs(): Promise<Song[]> {
   return all.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+export async function getSong(id: string): Promise<Song | undefined> {
+  const db = await openDB();
+  const tx = db.transaction(STORE, 'readonly');
+  return wrap(tx.objectStore(STORE).get(id) as IDBRequest<Song | undefined>);
+}
+
 export async function putSong(song: Song): Promise<void> {
   const db = await openDB();
   const tx = db.transaction(STORE, 'readwrite');

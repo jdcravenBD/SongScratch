@@ -857,6 +857,462 @@ input {
   color: var(--danger);
 }
 
+/* =============================================================== the editor ==
+ * One song, open on its tabs. Same rules as the list: the chrome is its
+ * controls and nothing else, and the page scrolls the full height underneath
+ * it. The bar heights feed --nav-h / --dock-h, which is all ScrollArea needs to
+ * size its own insets and fades to match.
+ */
+
+.editor {
+  --ebar-h: 44px;
+  --tabs-h: 40px;
+  --nav-h: calc(var(--ebar-h) + var(--tabs-h));
+  --dock-h: 58px;
+  animation: editor-in 0.26s var(--ease) both;
+}
+
+@keyframes editor-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--safe-t) + var(--ebar-h));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--safe-t) calc(var(--edge) + var(--safe-r)) 0
+    calc(var(--edge) + var(--safe-l));
+}
+
+.ebar__mid {
+  display: flex;
+  gap: 8px;
+}
+
+.iconbtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--pill);
+  color: var(--text);
+  background: var(--fill);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s var(--ease);
+}
+
+.iconbtn:hover:not(:disabled) {
+  background: var(--fill-hi);
+}
+
+.iconbtn:active:not(:disabled) {
+  background: var(--fill-press);
+  transform: scale(0.94);
+}
+
+.iconbtn:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+/* Chords | Lyrics | Voice */
+.tabs {
+  position: absolute;
+  top: calc(var(--safe-t) + var(--ebar-h));
+  left: 0;
+  right: 0;
+  height: var(--tabs-h);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tabs__tab {
+  padding: 6px 15px;
+  border-radius: var(--pill);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  border: 1px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.tabs__tab:hover {
+  color: var(--text);
+}
+
+.tabs__tab.is-on {
+  color: var(--text);
+  background: var(--fill);
+  border-color: var(--stroke);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+}
+
+/* ------------------------------------------------------------ the song sheet -- */
+
+.ly {
+  padding: 6px calc(var(--edge) + var(--safe-r)) 28px calc(var(--edge) + var(--safe-l));
+  outline: none;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* The type hierarchy the song sheet is specified in. */
+.ly-title {
+  margin: 0 0 1px;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+}
+
+.ly-tuning {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: var(--text-2);
+}
+
+.ly-desc {
+  margin: 0 0 20px;
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text-2);
+}
+
+.ly-section {
+  margin: 22px 0 5px;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ly-chords {
+  margin: 0 0 7px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.ly-lyrics {
+  margin: 0 0 5px;
+  font-size: 16px;
+  white-space: pre-wrap;
+}
+
+/* Empty blocks say what they're for rather than sitting there blank. */
+.ly [data-ph]:empty::before {
+  content: attr(data-ph);
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------- dock -- */
+
+.dock--editor {
+  display: flex;
+  justify-content: center;
+}
+
+.chip--wide {
+  padding: 9px 34px;
+  font-size: 15px;
+}
+
+/* -------------------------------------------------------------- format bar --
+ * Rides directly on top of the on-screen keyboard: --kb is how much of the
+ * screen the keyboard is covering (see useKeyboardInset), and with no keyboard
+ * it falls back to clearing the home indicator instead.
+ */
+
+.fmt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(var(--kb, 0px), var(--safe-b));
+  z-index: 40;
+  padding: 0 calc(var(--edge) + var(--safe-r)) 10px calc(var(--edge) + var(--safe-l));
+}
+
+.fmt__bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  border-radius: var(--pill);
+  background: rgba(28, 28, 30, 0.86);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+.fmt__tool {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: var(--pill);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+
+.fmt__tool:hover {
+  background: var(--fill);
+}
+
+.fmt__tool.is-active {
+  background: var(--fill-hi);
+}
+
+.fmt__glyph {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.fmt__glyph--bold {
+  font-weight: 800;
+  font-size: 17px;
+}
+
+/* Divides the formatting tools from the one that ends editing. */
+.fmt__sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--stroke);
+}
+
+.fmt__panel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  background: rgba(28, 28, 30, 0.92);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  animation: panel-in 0.16s var(--ease) both;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.fmt__opt {
+  flex: 1 1 0;
+  padding: 7px 4px;
+  border-radius: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.fmt__opt:hover {
+  background: var(--fill);
+}
+
+/* Each size option is set in the size it applies. */
+.fmt__opt--title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.fmt__opt--section {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.fmt__opt--chords {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fmt__opt--lyrics {
+  font-size: 13px;
+}
+
+.fmt__styles {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.fmt__style {
+  flex: 1 1 0;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 16px;
+  color: var(--text);
+  transition: background 0.15s ease;
+}
+
+.fmt__style:hover {
+  background: var(--fill);
+}
+
+.fmt__style--bold {
+  font-weight: 800;
+}
+
+.fmt__style--italic {
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.fmt__style--underline {
+  text-decoration: underline;
+}
+
+.fmt__style--strikethrough {
+  text-decoration: line-through;
+}
+
+.fmt__swatches {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.swatch {
+  flex: 1 1 0;
+  height: 28px;
+  max-width: 40px;
+  border-radius: 9px;
+  border: 1px solid var(--stroke);
+  transition: transform 0.15s var(--ease);
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+/* "No highlight" — a swatch with a line through it. */
+.swatch--none {
+  position: relative;
+  background: transparent;
+}
+
+.swatch--none::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  top: 50%;
+  height: 1.5px;
+  background: var(--text-3);
+  transform: rotate(-20deg);
+}
+
+/* ------------------------------------------------------------ action sheet -- */
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  animation: fade-in 0.18s ease both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sheet__panel {
+  position: relative;
+  width: 100%;
+  margin: 0 8px calc(8px + var(--safe-b));
+  border-radius: 16px;
+  overflow: hidden;
+  background: #1c1c1e;
+  animation: sheet-in 0.24s var(--ease) both;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sheet__item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 16px;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.sheet__item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sheet__item + .sheet__item {
+  border-top: 1px solid var(--hairline);
+}
+
+.sheet__item--danger {
+  color: var(--danger);
+}
+
 /* ============================================================= device frame ==
  * Desktop only: an iPhone 12 chassis (390x844) so the browser shows the app at
  * the proportions it is actually held at. None of this fires on a phone.

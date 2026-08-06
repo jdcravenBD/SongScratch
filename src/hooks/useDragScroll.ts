@@ -10,10 +10,12 @@ import type { RefObject } from 'react';
  * Horizontal drags are left alone so a row's swipe-to-delete still works — this
  * only claims the gesture once it's clearly vertical.
  */
-export function useDragScroll(ref: RefObject<HTMLElement | null>) {
+export function useDragScroll(ref: RefObject<HTMLElement | null>, enabled = true) {
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    // Off while text is being edited: there a drag has to mean "select", and
+    // hijacking it for scrolling would make selection impossible.
+    if (!el || !enabled) return;
 
     let active = false;
     let decided = false;
@@ -111,5 +113,5 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>) {
       el.removeEventListener('pointerup', onUp);
       el.removeEventListener('pointercancel', onUp);
     };
-  }, [ref]);
+  }, [ref, enabled]);
 }

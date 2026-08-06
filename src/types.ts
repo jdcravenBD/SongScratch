@@ -23,6 +23,14 @@ export interface Song {
   sectionCount?: number;
   /** How many voice memos are attached. */
   voiceCount?: number;
+  /**
+   * The lyric tab's document, as HTML. It holds the whole hierarchy — title,
+   * tuning, description, then each section with its chords and lines — because
+   * the user edits all of it as one rich-text document rather than as fields.
+   * `title`, `description` and `sectionCount` above are mirrored back out of it
+   * on save so the song list never has to parse this to draw a row.
+   */
+  lyrics?: string;
   createdAt: number;
   updatedAt: number;
 }
