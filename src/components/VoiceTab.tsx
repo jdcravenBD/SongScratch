@@ -30,12 +30,11 @@ export function VoiceList({ voice }: { voice: VoiceMemos }) {
         </p>
       </div>
 
-      {recorder.error ? (
-        <div className="empty">
-          <p className="empty__title">Can’t Record</p>
-          <p className="empty__hint">{recorder.error}</p>
-        </div>
-      ) : count === 0 ? (
+      {/* A recording that failed must not take the existing ones off screen
+          with it, so this sits above the list rather than replacing it. */}
+      {recorder.error && <p className="notice">{recorder.error}</p>}
+
+      {count === 0 ? (
         <div className="empty">
           <p className="empty__title">No Recordings</p>
           <p className="empty__hint">

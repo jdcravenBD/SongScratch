@@ -284,10 +284,20 @@ export default function MemoRow({
               />
             ) : (
               <span
-                className="memo__name"
-                // Tapping the name of an open memo renames it. Closed, the tap
-                // belongs to the row and opens it instead.
-                onClick={(e) => {
+                className={`memo__name${expanded && !selectMode ? ' is-editable' : ''}`}
+                /*
+                 * Tapping the name of an open memo renames it; closed, the tap
+                 * belongs to the row and opens it instead.
+                 *
+                 * The pointer events have to be swallowed here, not just the
+                 * click. The header acts on pointerup, which lands first and
+                 * collapses the row — by the time a click arrived there was
+                 * nothing open left to rename.
+                 */
+                onPointerDown={(e) => {
+                  if (expanded && !selectMode) e.stopPropagation();
+                }}
+                onPointerUp={(e) => {
                   if (!expanded || selectMode) return;
                   e.stopPropagation();
                   setRenaming(true);

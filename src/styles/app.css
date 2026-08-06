@@ -111,6 +111,9 @@ button {
   font: inherit;
   color: inherit;
   margin: 0;
+  /* Browsers give buttons their own padding, which silently eats the content
+     box: a fixed-size round button ends up squeezing whatever it contains. */
+  padding: 0;
   border: 0;
   background: none;
   cursor: pointer;
@@ -1578,7 +1581,14 @@ input {
   gap: 2px;
   height: 54px;
   padding: 0 1px;
-  touch-action: none; /* dragging here scrubs, it never scrolls */
+  /*
+   * `pan-y`, not `none`. The browser must stay free to scroll the list from a
+   * touch that starts here — with `none` it is forbidden from scrolling at all,
+   * so bowing out of the scrub in JS achieved nothing and the list stayed
+   * pinned under the thumb. Horizontal is left to us, which is the axis we
+   * actually want.
+   */
+  touch-action: pan-y;
   cursor: pointer;
 }
 
@@ -1667,6 +1677,17 @@ input {
   height: 60px;
 }
 
+/* Something went wrong with the microphone, said without hiding the list. */
+.notice {
+  margin: 0 calc(var(--text-edge) + var(--safe-r)) 12px
+    calc(var(--text-edge) + var(--safe-l));
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 69, 58, 0.14);
+  color: var(--danger);
+  font-size: var(--fs-meta);
+}
+
 /* --------------------------------------------------------- record control -- */
 
 .rec {
@@ -1717,17 +1738,18 @@ input {
   background: var(--danger);
 }
 
-/* The classic circle that becomes a square while running. The ring is a
-   hairline sitting close in, not a heavy band with a gap behind it. */
+/* The classic circle that becomes a square while running. The ring is a faint
+   hairline sitting close in — it outlines the target without competing with
+   the red for attention. */
 .rec__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   border-radius: var(--pill);
   background: none;
-  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.15s var(--ease);
 }
@@ -1742,8 +1764,8 @@ input {
 }
 
 .rec__glyph {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   border-radius: var(--pill);
   background: var(--danger);
   transition:
@@ -1753,9 +1775,9 @@ input {
 }
 
 .rec__btn.is-recording .rec__glyph {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
 }
 
 /* Selecting takes the record control's place rather than crowding beside it. */

@@ -38,6 +38,21 @@ const order = (all: Memo[]) =>
   );
 
 /**
+ * "Untitled", then "Untitled 2", "Untitled 3"…
+ *
+ * Numbered from the highest already in use rather than from the count, so
+ * deleting one doesn't hand its name to the next recording made.
+ */
+function nextUntitled(existing: Memo[]): string {
+  let highest = 0;
+  for (const memo of existing) {
+    const match = /^Untitled(?: (\d+))?$/.exec(memo.name.trim());
+    if (match) highest = Math.max(highest, match[1] ? Number(match[1]) : 1);
+  }
+  return highest === 0 ? 'Untitled' : `Untitled ${highest + 1}`;
+}
+
+/**
  * Every recording belonging to one song, and the machinery to add to them.
  *
  * Recording new and carrying on with an old memo are the same operation here —
@@ -91,8 +106,9 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
     if (!segment) return; // too short to be a recording
 
     const now = Date.now();
+    const existingAll = await getMemos(songId);
     if (target) {
-      const existing = (await getMemos(songId)).find((m) => m.id === target);
+      const existing = existingAll.find((m) => m.id === target);
       if (existing) {
         await putMemo({
           ...existing,
@@ -106,7 +122,7 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
         songId,
         // Named by the user, not by the clock — the row already shows when it
         // was made, so a timestamp for a name would just say it twice.
-        name: 'Untitled',
+        name: nextUntitled(existingAll),
         mimeType: segment.blob.type,
         segments: [segment],
         createdAt: now,
@@ -118,14 +134,23 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
     await refresh();
   }, [recorder, appendingTo, songId, refresh]);
 
+  /*
+   * Both of these read the store rather than the `memos` state.
+   *
+   * Toggling from state meant toggling from whatever snapshot the callback had
+   * closed over: a moment behind — just after a refresh, or a recording landing
+   * — and a pin would compute from the old value and write back the one it
+   * already had, which is why it worked only some of the time. The store is
+   * never behind.
+   */
   const rename = useCallback(
     async (id: string, name: string) => {
-      const memo = memos.find((m) => m.id === id);
+      const memo = (await getMemos(songId)).find((m) => m.id === id);
       if (!memo) return;
       await putMemo({ ...memo, name, updatedAt: Date.now() });
       await refresh();
     },
-    [memos, refresh],
+    [songId, refresh],
   );
 
   const removeMany = useCallback(
@@ -142,14 +167,14 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
 
   const setPinned = useCallback(
     async (ids: string[], value?: boolean) => {
-      const targets = memos.filter((m) => ids.includes(m.id));
+      const targets = (await getMemos(songId)).filter((m) => ids.includes(m.id));
       await Promise.all(
         targets.map((m) => putMemo({ ...m, pinned: value ?? !m.pinned })),
       );
       setRevealedId(null);
       await refresh();
     },
-    [memos, refresh],
+    [songId, refresh],
   );
 
   const enterSelect = useCallback((id?: string) => {
