@@ -11,7 +11,6 @@ import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
 import {
   BackIcon,
-  ComposeIcon,
   DuplicateIcon,
   EllipsisIcon,
   PinIcon,
@@ -212,21 +211,9 @@ export default function SongEditor({ id, onBack }: Props) {
           onDone={finishEditing}
         />
       ) : (
-        /* Tabs live along the bottom, within thumb reach. The pencil is taken
-           out of the flow into the corner so the tabs centre on the screen
-           rather than on the space left beside it. */
+        /* Tabs along the bottom, within thumb reach. There is no edit button:
+           editing starts by tapping the page where you want the caret. */
         <div className="edock">
-          {tab === 'lyrics' && (
-            <button
-              className="iconbtn edock__edit"
-              type="button"
-              aria-label="Edit lyrics"
-              onClick={() => setEditing(true)}
-            >
-              <ComposeIcon />
-            </button>
-          )}
-
           <nav className="tabs" aria-label="Song sections">
             {TABS.map((t) => (
               <button

@@ -44,9 +44,11 @@
   --fs-micro: 11px;
 
   /* --- metrics ----------------------------------------------------------- */
-  /* One left inset shared by the title, the group labels and every row, so a
-     single vertical line runs down the whole screen. */
+  /* Controls sit on --edge; anything that is read sits further in on
+     --text-edge, so prose has room to breathe against the screen edge without
+     the buttons drifting inward with it. */
   --edge: 15px;
+  --text-edge: 23px;
   --nav-h: 50px;
   --dock-h: 62px;
   --pill: 999px;
@@ -64,53 +66,33 @@
   box-sizing: border-box;
 }
 
-html,
-body,
+/*
+ * The app is exactly the viewport, and never moves.
+ *
+ * Every way of *calculating* that height has now failed on a real handset:
+ * `100%` resolves against the viewport with Safari's toolbars showing, `dvh`
+ * has its own idea of it, and `window.innerHeight` under-reports once the app
+ * is on the home screen — each leaving a band of dead black beneath the
+ * interface. A box pinned to all four edges never computes a height at all; it
+ * is the viewport by construction, whatever that turns out to be.
+ *
+ * Fixed also nails the page down, so a drag starting anywhere but the list
+ * cannot haul the whole interface around. `overflow: hidden` alone does not do
+ * that on iOS.
+ */
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
 #root {
   height: 100%;
 }
 
-/*
- * On iOS, `100%` resolves against the *small* viewport — the one with Safari's
- * toolbars showing — so the app stops short of the screen and everything
- * anchored to its bottom, the search field and New Song especially, sits higher
- * than the edge it is supposed to be on. `dvh` tracks the viewport as those
- * toolbars come and go. The desktop frame overrides #root again further down.
- */
-/* `--app-h` is measured from window.innerHeight in main.tsx; the dvh is only a
-   fallback for the first paint before that runs. */
-@supports (height: 100dvh) {
-  html,
-  body,
-  #root {
-    height: 100dvh;
-  }
-}
-
-html,
-body,
-#root {
-  height: var(--app-h, 100dvh);
-}
-
-/*
- * Nail the page down. The app is a fixed frame with its own scrollers inside,
- * so the document itself must never move — otherwise a drag that starts
- * anywhere but the list drags the whole interface up and down with it, and iOS
- * rubber-bands the lot. `position: fixed` on the body is what actually stops
- * it there; `overflow: hidden` alone does not.
- */
-html,
-body {
-  overflow: hidden;
-  overscroll-behavior: none;
-}
-
 body {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  inset: 0;
+  overflow: hidden;
 }
 
 body {
@@ -445,7 +427,7 @@ input {
 /* --------------------------------------------------------------------- hero -- */
 
 .hero {
-  padding: 6px calc(var(--edge) + var(--safe-r)) 12px calc(var(--edge) + var(--safe-l));
+  padding: 6px calc(var(--text-edge) + var(--safe-r)) 12px calc(var(--text-edge) + var(--safe-l));
 }
 
 .hero__title {
@@ -475,7 +457,7 @@ input {
    so nothing is pinned over the list as it moves. */
 .group__label {
   margin: 0;
-  padding: 14px calc(var(--edge) + var(--safe-r)) 6px calc(var(--edge) + var(--safe-l));
+  padding: 14px calc(var(--text-edge) + var(--safe-r)) 6px calc(var(--text-edge) + var(--safe-l));
   font-size: var(--fs-group);
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -570,7 +552,7 @@ input {
   z-index: 1;
   display: flex;
   align-items: center;
-  padding: 10px calc(var(--edge) + var(--safe-r)) 10px calc(var(--edge) + var(--safe-l));
+  padding: 10px calc(var(--text-edge) + var(--safe-r)) 10px calc(var(--text-edge) + var(--safe-l));
   min-height: 58px;
   /* Opaque so the actions behind stay hidden until swiped. */
   background: var(--bg);
@@ -587,7 +569,7 @@ input {
 .row__fg::before {
   content: '';
   position: absolute;
-  inset: 2px 8px;
+  inset: 2px calc(var(--text-edge) - 8px);
   border-radius: 13px;
   background: var(--fill-hi);
   opacity: 0;
@@ -605,7 +587,7 @@ input {
   content: '';
   position: absolute;
   top: 0;
-  left: calc(var(--edge) + var(--safe-l));
+  left: calc(var(--text-edge) + var(--safe-l));
   right: 12px;
   height: 1px;
   background: var(--hairline);
@@ -1025,14 +1007,6 @@ input {
     calc(var(--edge) + var(--safe-l));
 }
 
-/* Taken out of the flow so the tabs centre on the screen rather than on
-   whatever space is left beside it. */
-.edock__edit {
-  position: absolute;
-  right: calc(var(--edge) + var(--safe-r));
-  bottom: calc(10px + var(--safe-b));
-}
-
 /* Chords | Lyrics | Voice */
 .tabs {
   flex: 0 0 auto;
@@ -1070,11 +1044,20 @@ input {
 /* ------------------------------------------------------------ the song sheet -- */
 
 .ly {
-  padding: 6px calc(var(--edge) + var(--safe-r)) 28px calc(var(--edge) + var(--safe-l));
+  padding: 6px calc(var(--text-edge) + var(--safe-r)) 28px calc(var(--text-edge) + var(--safe-l));
   outline: none;
   cursor: text;
   user-select: text;
   -webkit-user-select: text;
+  /*
+   * WebKit's UA stylesheet applies `word-wrap: break-word` to editable regions
+   * and nothing else, so a long unbroken run of text wrapped while editing and
+   * then ran straight off the side in view mode — where overflow-x is clipped,
+   * putting it nowhere. Setting it here makes both modes agree. It inherits, so
+   * every block in the document is covered.
+   */
+  overflow-wrap: break-word;
+  min-width: 0;
 }
 
 /* The type hierarchy the song sheet is specified in. */
@@ -1405,10 +1388,11 @@ input {
 /* ------------------------------------------------------- last-edited stamp -- */
 
 .stamp {
-  margin: 0 0 10px;
-  padding: 0 calc(var(--edge) + var(--safe-r)) 0 calc(var(--edge) + var(--safe-l));
+  /* Sits clear of the bar above it rather than tucked under it. */
+  margin: 16px 0 18px;
+  padding: 0 calc(var(--text-edge) + var(--safe-r)) 0 calc(var(--text-edge) + var(--safe-l));
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-2);
 }
 
