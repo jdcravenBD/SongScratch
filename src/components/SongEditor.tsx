@@ -6,9 +6,12 @@ import { extractMeta, setBlockKind, type BlockKind } from '../lib/lyrics';
 import { formatStamp } from '../lib/format';
 import { newId } from '../lib/id';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
+import { useVoiceMemos } from '../hooks/useVoiceMemos';
+import { deleteMemosForSong } from '../db/memos';
 import ScrollArea from './ScrollArea';
 import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
+import { VoiceDock, VoiceList } from './VoiceTab';
 import {
   BackIcon,
   DuplicateIcon,
@@ -53,6 +56,7 @@ export default function SongEditor({ id, onBack }: Props) {
   /** Latest unsaved HTML, so leaving the screen can flush it. */
   const pending = useRef<string | null>(null);
   const keyboardInset = useKeyboardInset();
+  const voice = useVoiceMemos(id, tab === 'voice');
 
   useEffect(() => {
     let alive = true;
@@ -135,7 +139,11 @@ export default function SongEditor({ id, onBack }: Props) {
   if (!song) return <div className="screen" />;
 
   return (
-    <div className={`screen editor${editing ? ' is-editing' : ''}`}>
+    <div
+      className={`screen editor${editing ? ' is-editing' : ''}${
+        tab === 'voice' ? ' is-voice' : ''
+      }`}
+    >
       <header className="ebar">
         <button className="iconbtn" type="button" aria-label="Back to songs" onClick={onBack}>
           <BackIcon />
@@ -190,6 +198,8 @@ export default function SongEditor({ id, onBack }: Props) {
               onLeave={finishEditing}
             />
           </>
+        ) : tab === 'voice' ? (
+          <VoiceList voice={voice} />
         ) : (
           <div className="empty">
             <p className="empty__title">{TAB_LABEL[tab]}</p>
@@ -214,6 +224,8 @@ export default function SongEditor({ id, onBack }: Props) {
         /* Tabs along the bottom, within thumb reach. There is no edit button:
            editing starts by tapping the page where you want the caret. */
         <div className="edock">
+          {tab === 'voice' && <VoiceDock voice={voice} />}
+
           <nav className="tabs" aria-label="Song sections">
             {TABS.map((t) => (
               <button
@@ -277,6 +289,8 @@ export default function SongEditor({ id, onBack }: Props) {
                 // Drop the pending write first, or it would resurrect the song.
                 window.clearTimeout(saveTimer.current);
                 pending.current = null;
+                // Recordings must not outlive the song they belong to.
+                await deleteMemosForSong(song.id);
                 await deleteSongs([song.id]);
                 setMenuOpen(false);
                 onBack();

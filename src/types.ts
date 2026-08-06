@@ -34,3 +34,33 @@ export interface Song {
   createdAt: number;
   updatedAt: number;
 }
+
+/**
+ * One continuous take.
+ *
+ * A memo is a list of these rather than a single file because MediaRecorder
+ * cannot append to a recording it has already finished — every container it
+ * closes is complete and immutable. Adding to an old memo therefore means
+ * recording a new take and playing the takes back in order, which is what makes
+ * "carry on where I left off" possible at all.
+ */
+export interface Segment {
+  blob: Blob;
+  /** Seconds, measured while recording — see lib/audio for why not from the file. */
+  duration: number;
+  /** Loudness samples for drawing the waveform, 0–1, captured as it recorded. */
+  peaks: number[];
+}
+
+/** A voice note belonging to exactly one song. */
+export interface Memo {
+  id: string;
+  /** The song this belongs to. Indexed — a memo is never shown outside its song. */
+  songId: string;
+  /** Defaults to the date and time it was made; renameable. */
+  name: string;
+  mimeType: string;
+  segments: Segment[];
+  createdAt: number;
+  updatedAt: number;
+}

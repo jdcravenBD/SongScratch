@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Song } from '../types';
 import { newId } from '../lib/id';
+import { deleteMemosForSong } from '../db/memos';
 import {
   countSongs,
   deleteSongs as dbDelete,
@@ -161,6 +162,9 @@ export function useSongs(): SongsApi {
 
   const deleteSongs = useCallback(
     async (ids: string[]) => {
+      // Recordings must not outlive the song they belong to, or they sit in
+      // storage forever with nothing able to reach them.
+      await Promise.all(ids.map(deleteMemosForSong));
       await dbDelete(ids);
       await refresh();
     },

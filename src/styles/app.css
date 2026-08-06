@@ -899,6 +899,17 @@ input {
   animation: editor-in 0.26s var(--ease) both;
 }
 
+/* The voice tab stacks its record control above the tabs, so the bottom bar is
+   taller — and ScrollArea insets the list to match, off this one number. */
+.editor.is-voice {
+  --dock-h: 158px;
+}
+
+.editor.is-voice .edock {
+  flex-direction: column;
+  gap: 4px;
+}
+
 @keyframes editor-in {
   from {
     opacity: 0;
@@ -1383,6 +1394,313 @@ input {
 
 .menu__item--danger {
   color: var(--danger);
+}
+
+/* ============================================================ voice memos ==
+ * A song's recordings. Each row opens to a waveform you scrub directly — the
+ * waveform *is* the scrubber, so there is no second progress track to read.
+ */
+
+.memos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.memo {
+  position: relative;
+}
+
+.memo__fg {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  will-change: transform;
+}
+
+/* The head takes the swipe; the body must stay free for scrubbing. */
+.memo__head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px calc(var(--text-edge) + var(--safe-r)) 14px
+    calc(var(--text-edge) + var(--safe-l));
+  min-height: 56px;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.memo + .memo .memo__head::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--text-edge) + var(--safe-l));
+  right: 12px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.memo__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-row);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memo__rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-row);
+  font-weight: 600;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.memo__meta {
+  flex: 0 0 auto;
+  font-size: var(--fs-meta);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Opens downward out of its own row. */
+.memo__body {
+  padding: 0 calc(var(--text-edge) + var(--safe-r)) 18px
+    calc(var(--text-edge) + var(--safe-l));
+  animation: memo-open 0.22s var(--ease) both;
+}
+
+@keyframes memo-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.memo__delete {
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  height: 46px;
+  width: var(--reveal, 0px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--pill);
+  color: #fff;
+  background: var(--danger);
+  transition: width var(--reveal-ms, 0s) var(--ease);
+}
+
+.memo__delete svg {
+  flex: 0 0 auto;
+  opacity: var(--icon-op, 0);
+  transition: opacity 0.18s ease;
+}
+
+/* ------------------------------------------------------------- waveform -- */
+
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 54px;
+  padding: 0 1px;
+  touch-action: none; /* dragging here scrubs, it never scrolls */
+  cursor: pointer;
+}
+
+.wave__bar {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 1px;
+  background: var(--text-3);
+  transition: background 0.1s linear;
+}
+
+.wave__bar.is-played {
+  background: var(--text);
+}
+
+.wave.is-scrubbing .wave__bar {
+  transition: none;
+}
+
+.memo__times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ transport -- */
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  margin-top: 10px;
+}
+
+.transport__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--pill);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    transform 0.15s var(--ease);
+}
+
+.transport__btn:hover {
+  background: var(--fill);
+}
+
+.transport__btn:active {
+  transform: scale(0.92);
+}
+
+.transport__btn--play {
+  width: 60px;
+  height: 60px;
+}
+
+.memo__actions {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  margin-top: 12px;
+}
+
+.linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 4px;
+  font-size: 14px;
+  color: var(--text-2);
+  transition: color 0.15s ease;
+}
+
+.linkbtn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.linkbtn:disabled {
+  color: var(--text-3);
+  cursor: default;
+}
+
+/* --------------------------------------------------------- record control -- */
+
+.rec {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding-bottom: 8px;
+}
+
+.rec__hint,
+.rec__time,
+.rec__target {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.rec__time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.rec__target {
+  max-width: 78%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Live input level while recording — newest sample on the right. */
+.rec__meter {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: min(78%, 260px);
+  height: 26px;
+  margin-bottom: 2px;
+}
+
+.rec__bar {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 6%;
+  border-radius: 1px;
+  background: var(--danger);
+}
+
+/* The classic circle that becomes a square while running. */
+.rec__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: var(--pill);
+  background: none;
+  box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.55);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s var(--ease);
+}
+
+.rec__btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.rec__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rec__glyph {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--pill);
+  background: var(--danger);
+  transition:
+    width 0.22s var(--ease),
+    height 0.22s var(--ease),
+    border-radius 0.22s var(--ease);
+}
+
+.rec__btn.is-recording .rec__glyph {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
 }
 
 /* ------------------------------------------------------- last-edited stamp -- */

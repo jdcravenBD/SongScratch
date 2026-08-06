@@ -172,6 +172,76 @@ export function ColorIcon({ size = 19, className }: IconProps) {
   );
 }
 
+export function PlayIcon({ size = 26, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <path d="M8 5.4a.9.9 0 0 1 1.37-.77l9 6.6a.9.9 0 0 1 0 1.54l-9 6.6A.9.9 0 0 1 8 18.6z" />
+    </svg>
+  );
+}
+
+export function PauseIcon({ size = 26, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <rect x="6.4" y="5" width="3.9" height="14" rx="1.4" />
+      <rect x="13.7" y="5" width="3.9" height="14" rx="1.4" />
+    </svg>
+  );
+}
+
+/** Jump back ten seconds — a loop running anticlockwise, with the count inside. */
+export function Back10Icon({ size = 26, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className} strokeWidth={1.7}>
+      <path d="M11.6 4.6A7.9 7.9 0 1 1 4.1 12" />
+      <path d="M11.9 1.8 8.4 4.7l3.5 2.9" />
+      <text
+        x="12"
+        y="15.6"
+        textAnchor="middle"
+        fontSize="7.6"
+        fontWeight="700"
+        fill="currentColor"
+        stroke="none"
+        fontFamily="inherit"
+      >
+        10
+      </text>
+    </svg>
+  );
+}
+
+export function Forward10Icon({ size = 26, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className} strokeWidth={1.7}>
+      <path d="M12.4 4.6A7.9 7.9 0 1 0 19.9 12" />
+      <path d="M12.1 1.8l3.5 2.9-3.5 2.9" />
+      <text
+        x="12"
+        y="15.6"
+        textAnchor="middle"
+        fontSize="7.6"
+        fontWeight="700"
+        fill="currentColor"
+        stroke="none"
+        fontFamily="inherit"
+      >
+        10
+      </text>
+    </svg>
+  );
+}
+
+export function MicIcon({ size = 18, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <rect x="9" y="2.6" width="6" height="11.4" rx="3" />
+      <path d="M5.4 11.4a6.6 6.6 0 0 0 13.2 0" />
+      <path d="M12 18v3.2" />
+    </svg>
+  );
+}
+
 /** Selection indicator for multi-select. Filled with a tick when `on`. */
 export function SelectDot({ on, size = 21 }: { on: boolean; size?: number }) {
   return (
