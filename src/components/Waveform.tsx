@@ -4,6 +4,8 @@ import { downsample } from '../lib/audio';
 
 /** Bars drawn across the width. Enough to read, few enough to stay cheap. */
 const BARS = 88;
+/** Movement before a press counts as a scrub rather than the start of a scroll. */
+const SLOP = 8;
 
 interface Props {
   peaks: number[];
@@ -23,6 +25,9 @@ interface Props {
  */
 export default function Waveform({ peaks, progress, onScrub, onScrubEnd }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const start = useRef({ x: 0, y: 0 });
+  const pid = useRef<number | null>(null);
+  const moved = useRef(false);
   const [dragging, setDragging] = useState(false);
 
   const bars = useMemo(() => downsample(peaks, BARS), [peaks]);
@@ -34,28 +39,57 @@ export default function Waveform({ peaks, progress, onScrub, onScrubEnd }: Props
     return Math.max(0, Math.min(1, (clientX - box.left) / box.width));
   };
 
+  /**
+   * A press here does nothing on its own. Scrubbing only begins once the finger
+   * has clearly moved sideways — otherwise a thumb that happens to land on the
+   * waveform could not scroll the list past it, and every attempt to scroll
+   * would jump the playhead instead.
+   */
   const onPointerDown = (e: ReactPointerEvent) => {
     if (!onScrub) return;
-    e.stopPropagation(); // don't let the row treat this as a swipe
-    setDragging(true);
-    // Seek first: capturing can throw if the pointer is already gone, and the
-    // seek is the part that must not be lost to it.
-    onScrub(fractionAt(e.clientX));
-    try {
-      host.current?.setPointerCapture(e.pointerId);
-    } catch {
-      /* nothing to capture */
-    }
+    start.current = { x: e.clientX, y: e.clientY };
+    pid.current = e.pointerId;
+    moved.current = false;
   };
 
   const onPointerMove = (e: ReactPointerEvent) => {
-    if (!dragging || !onScrub) return;
+    if (!onScrub || pid.current !== e.pointerId) return;
+    const dx = e.clientX - start.current.x;
+    const dy = e.clientY - start.current.y;
+
+    if (!dragging) {
+      if (Math.abs(dx) > SLOP || Math.abs(dy) > SLOP) moved.current = true;
+      if (Math.abs(dy) > SLOP && Math.abs(dy) >= Math.abs(dx)) {
+        pid.current = null; // vertical — hand it back to the list
+        return;
+      }
+      if (Math.abs(dx) <= SLOP) return;
+      setDragging(true);
+      e.stopPropagation(); // now it's ours, not the row's swipe
+      try {
+        host.current?.setPointerCapture(e.pointerId);
+      } catch {
+        /* nothing to capture */
+      }
+    }
+
     e.preventDefault();
     onScrub(fractionAt(e.clientX));
   };
 
   const end = (e: ReactPointerEvent) => {
-    if (!dragging) return;
+    const wasDragging = dragging;
+    // A tap is a press that never travelled. A drag that bowed out vertically
+    // belongs to the list's scroll and must not seek on the way up.
+    const wasTap = !wasDragging && !moved.current && pid.current === e.pointerId;
+    pid.current = null;
+    moved.current = false;
+
+    if (wasTap) {
+      onScrub?.(fractionAt(e.clientX));
+      return;
+    }
+    if (!wasDragging) return;
     setDragging(false);
     onScrubEnd?.(fractionAt(e.clientX));
   };

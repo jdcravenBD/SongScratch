@@ -232,6 +232,15 @@ export function Forward10Icon({ size = 26, className }: IconProps) {
   );
 }
 
+/** Add another take to an existing recording. */
+export function PlusIcon({ size = 24, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className} strokeWidth={2.2}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 export function MicIcon({ size = 18, className }: IconProps) {
   return (
     <svg {...base} width={size} height={size} className={className}>

@@ -57,8 +57,10 @@ export interface Memo {
   id: string;
   /** The song this belongs to. Indexed — a memo is never shown outside its song. */
   songId: string;
-  /** Defaults to the date and time it was made; renameable. */
+  /** "Untitled" until the user names it. */
   name: string;
+  /** Pinned memos sort to the top of the song's list. */
+  pinned?: boolean;
   mimeType: string;
   segments: Segment[];
   createdAt: number;

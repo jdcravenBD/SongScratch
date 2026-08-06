@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { VoiceMemos } from '../hooks/useVoiceMemos';
 import { formatDuration } from '../lib/audio';
 import MemoRow from './MemoRow';
+import { PinIcon, TrashIcon } from './icons';
 
 /** Bars in the live meter — a moving window of the last few seconds. */
 const LIVE_BARS = 46;
@@ -12,65 +13,118 @@ const LIVE_BARS = 46;
  */
 export function VoiceList({ voice }: { voice: VoiceMemos }) {
   const { memos, recorder } = voice;
-
-  if (recorder.error) {
-    return (
-      <div className="empty">
-        <p className="empty__title">Can’t Record</p>
-        <p className="empty__hint">{recorder.error}</p>
-      </div>
-    );
-  }
-
-  if (memos.length === 0) {
-    return (
-      <div className="empty">
-        <p className="empty__title">No Recordings</p>
-        <p className="empty__hint">
-          {recorder.supported
-            ? 'Tap the record button to capture an idea.'
-            : 'Recording needs a secure connection (https).'}
-        </p>
-      </div>
-    );
-  }
+  const count = memos.length;
 
   return (
-    <ul className="memos">
-      {memos.map((memo) => (
-        <MemoRow
-          key={memo.id}
-          memo={memo}
-          expanded={voice.expandedId === memo.id}
-          busy={recorder.recording}
-          forceClosed={voice.revealedId !== null && voice.revealedId !== memo.id}
-          onExpand={voice.setExpandedId}
-          onDelete={(id) => void voice.remove(id)}
-          onRename={(id, name) => void voice.rename(id, name)}
-          onResume={voice.startResume}
-          onReveal={voice.setRevealedId}
-        />
-      ))}
-    </ul>
+    <>
+      <div className="hero">
+        <h1 className="hero__title">
+          {voice.selectMode
+            ? voice.selected.size
+              ? `${voice.selected.size} Selected`
+              : 'Select Memos'
+            : 'Recordings'}
+        </h1>
+        <p className="hero__count">
+          {count} {count === 1 ? 'Memo' : 'Memos'}
+        </p>
+      </div>
+
+      {recorder.error ? (
+        <div className="empty">
+          <p className="empty__title">Can’t Record</p>
+          <p className="empty__hint">{recorder.error}</p>
+        </div>
+      ) : count === 0 ? (
+        <div className="empty">
+          <p className="empty__title">No Recordings</p>
+          <p className="empty__hint">
+            {recorder.supported
+              ? 'Tap the record button to capture an idea.'
+              : 'Recording needs a secure connection (https).'}
+          </p>
+        </div>
+      ) : (
+        <ul className="memos">
+          {memos.map((memo) => (
+            <MemoRow
+              key={memo.id}
+              memo={memo}
+              expanded={voice.expandedId === memo.id}
+              busy={recorder.recording}
+              selectMode={voice.selectMode}
+              selected={voice.selected.has(memo.id)}
+              forceClosed={voice.revealedId !== null && voice.revealedId !== memo.id}
+              onExpand={voice.setExpandedId}
+              onDelete={(id) => void voice.remove(id)}
+              onRename={(id, name) => void voice.rename(id, name)}
+              onTogglePin={(id) => void voice.setPinned([id])}
+              onResume={voice.startResume}
+              onLongPress={voice.enterSelect}
+              onToggleSelect={voice.toggleSelect}
+              onReveal={voice.setRevealedId}
+            />
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
 /**
  * The record button, and while recording, the elapsed time and a live meter.
- * Sits in the editor's bottom bar above the tabs.
+ * Sits in the editor's bottom bar above the tabs — or gives way to the
+ * selection actions while several memos are picked.
  */
 export function VoiceDock({ voice }: { voice: VoiceMemos }) {
   const { recorder } = voice;
   const target = voice.memos.find((m) => m.id === voice.appendingTo);
+
+  if (voice.selectMode) {
+    const ids = [...voice.selected];
+    const n = ids.length;
+    const addPins = !voice.memos.filter((m) => voice.selected.has(m.id)).every((m) => m.pinned);
+    return (
+      <div className="rec rec--select">
+        <div className="toolbar">
+          <button
+            className="tool"
+            type="button"
+            disabled={!n}
+            onClick={async () => {
+              await voice.setPinned(ids, addPins);
+              voice.exitSelect();
+            }}
+          >
+            <PinIcon />
+            <span>{addPins ? 'Pin' : 'Unpin'}</span>
+          </button>
+          <button
+            className="tool tool--danger"
+            type="button"
+            disabled={!n}
+            onClick={async () => {
+              await voice.removeMany(ids);
+              voice.exitSelect();
+            }}
+          >
+            <TrashIcon />
+            <span>Delete</span>
+          </button>
+          <button className="tool" type="button" onClick={voice.exitSelect}>
+            <span className="tool__done">Done</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rec">
       {recorder.recording ? (
         <RecordingMeter peaksRef={recorder.peaksRef} startedAtRef={recorder.startedAtRef} />
       ) : (
-        <p className="rec__hint">
-          {recorder.supported ? 'Record' : 'Recording needs https'}
-        </p>
+        !recorder.supported && <p className="rec__hint">Recording needs https</p>
       )}
 
       {recorder.recording && target && (

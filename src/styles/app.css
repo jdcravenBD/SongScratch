@@ -1421,14 +1421,43 @@ input {
 /* The head takes the swipe; the body must stay free for scrubbing. */
 .memo__head {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 14px calc(var(--text-edge) + var(--safe-r)) 14px
+  align-items: center;
+  padding: 17px calc(var(--text-edge) + var(--safe-r)) 17px
     calc(var(--text-edge) + var(--safe-l));
-  min-height: 56px;
+  min-height: 68px;
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
+}
+
+/* Selection dot slides the row's contents across, as in the song list. */
+.memo__check {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  width: 0;
+  margin-right: 0;
+  opacity: 0;
+  overflow: hidden;
+  color: var(--text);
+  transition:
+    width 0.26s var(--ease),
+    margin 0.26s var(--ease),
+    opacity 0.18s ease;
+}
+
+.memo__check.is-shown {
+  width: 21px;
+  margin-right: 12px;
+  opacity: 1;
+}
+
+.memo__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .memo + .memo .memo__head::before {
@@ -1442,7 +1471,9 @@ input {
 }
 
 .memo__name {
-  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   min-width: 0;
   font-size: var(--fs-row);
   font-weight: 600;
@@ -1452,8 +1483,13 @@ input {
   white-space: nowrap;
 }
 
+.memo__pin {
+  flex: 0 0 auto;
+  color: var(--text-2);
+}
+
 .memo__rename {
-  flex: 1 1 auto;
+  width: 100%;
   min-width: 0;
   border: 0;
   padding: 0;
@@ -1466,11 +1502,18 @@ input {
   -webkit-user-select: text;
 }
 
+/* When it was recorded on the left, how long it runs on the right. */
 .memo__meta {
-  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   font-size: var(--fs-meta);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
+}
+
+.memo__length {
+  flex: 0 0 auto;
 }
 
 /* Opens downward out of its own row. */
@@ -1491,26 +1534,40 @@ input {
   }
 }
 
-.memo__delete {
+/* Same growing pills as the song list: right to pin, left to delete. */
+.memo__action {
   position: absolute;
-  top: 5px;
-  right: 8px;
+  top: 11px;
   height: 46px;
-  width: var(--reveal, 0px);
+  width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   border-radius: var(--pill);
   color: #fff;
-  background: var(--danger);
   transition: width var(--reveal-ms, 0s) var(--ease);
 }
 
-.memo__delete svg {
+.memo__action svg {
   flex: 0 0 auto;
   opacity: var(--icon-op, 0);
   transition: opacity 0.18s ease;
+}
+
+.memo__action--delete {
+  right: 8px;
+  background: var(--danger);
+}
+
+.memo__action--pin {
+  left: 8px;
+  background: #3a3a3c;
+}
+
+.memo[data-swipe='pin'] .memo__action--pin,
+.memo[data-swipe='delete'] .memo__action--delete {
+  width: var(--reveal, 0px);
 }
 
 /* ------------------------------------------------------------- waveform -- */
@@ -1552,12 +1609,35 @@ input {
 
 /* ------------------------------------------------------------ transport -- */
 
+/* Pin at one end, add-a-take at the other, playback held in the middle. */
 .transport {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 26px;
+  justify-content: space-between;
   margin-top: 10px;
+}
+
+.transport__center {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.transport__btn--edge {
+  color: var(--text-2);
+}
+
+.transport__btn--edge:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.transport__btn--edge[aria-pressed='true'] {
+  color: var(--text);
+}
+
+.transport__btn:disabled {
+  color: var(--text-3);
+  cursor: default;
 }
 
 .transport__btn {
@@ -1585,32 +1665,6 @@ input {
 .transport__btn--play {
   width: 60px;
   height: 60px;
-}
-
-.memo__actions {
-  display: flex;
-  justify-content: center;
-  gap: 22px;
-  margin-top: 12px;
-}
-
-.linkbtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 4px;
-  font-size: 14px;
-  color: var(--text-2);
-  transition: color 0.15s ease;
-}
-
-.linkbtn:hover:not(:disabled) {
-  color: var(--text);
-}
-
-.linkbtn:disabled {
-  color: var(--text-3);
-  cursor: default;
 }
 
 /* --------------------------------------------------------- record control -- */
@@ -1663,16 +1717,17 @@ input {
   background: var(--danger);
 }
 
-/* The classic circle that becomes a square while running. */
+/* The classic circle that becomes a square while running. The ring is a
+   hairline sitting close in, not a heavy band with a gap behind it. */
 .rec__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   border-radius: var(--pill);
   background: none;
-  box-shadow: inset 0 0 0 2.5px rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.45);
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.15s var(--ease);
 }
@@ -1687,8 +1742,8 @@ input {
 }
 
 .rec__glyph {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--pill);
   background: var(--danger);
   transition:
@@ -1698,9 +1753,19 @@ input {
 }
 
 .rec__btn.is-recording .rec__glyph {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+/* Selecting takes the record control's place rather than crowding beside it. */
+.rec--select .toolbar {
+  width: 100%;
+}
+
+.tool__done {
+  font-size: 15px;
+  font-weight: 500;
 }
 
 /* ------------------------------------------------------- last-edited stamp -- */

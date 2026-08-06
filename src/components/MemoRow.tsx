@@ -2,19 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Memo } from '../types';
 import { allPeaks, formatDuration, totalDuration } from '../lib/audio';
+import { formatWhen } from '../lib/format';
 import { usePlayer } from '../hooks/usePlayer';
 import Waveform from './Waveform';
 import {
   Back10Icon,
   Forward10Icon,
-  MicIcon,
   PauseIcon,
+  PinIcon,
   PlayIcon,
+  PlusIcon,
+  SelectDot,
   TrashIcon,
 } from './icons';
 
 const REVEAL = 78;
 const SLOP = 8;
+const LONG_MS = 450;
 const COMMIT = 0.42;
 const PILL_GAP = 14;
 const ICON_AT = 40;
@@ -24,43 +28,60 @@ interface Props {
   expanded: boolean;
   /** True while a recording is in progress anywhere on the screen. */
   busy: boolean;
+  selectMode: boolean;
+  selected: boolean;
   forceClosed: boolean;
   onExpand: (id: string | null) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
+  onTogglePin: (id: string) => void;
   onResume: (id: string) => void;
+  onLongPress: (id: string) => void;
+  onToggleSelect: (id: string) => void;
   onReveal: (id: string | null) => void;
 }
 
 /**
- * One recording: its name and length, opening to a waveform you can scrub and
- * a transport. Only the header takes the swipe, so dragging across the
- * waveform scrubs instead of sliding the row away.
+ * One recording: its name, when it was made and how long it runs, opening to a
+ * waveform you can scrub and a transport.
+ *
+ * Only the header takes the swipe, and the pointer is captured on that same
+ * element — capturing on the wrapper instead retargets every later event to the
+ * wrapper, so the header's own handlers stop firing and the row sticks halfway
+ * open. Same gesture vocabulary as the song list: right to pin, left to delete,
+ * hold to start selecting.
  */
 export default function MemoRow({
   memo,
   expanded,
   busy,
+  selectMode,
+  selected,
   forceClosed,
   onExpand,
   onDelete,
   onRename,
+  onTogglePin,
   onResume,
+  onLongPress,
+  onToggleSelect,
   onReveal,
 }: Props) {
   const host = useRef<HTMLLIElement>(null);
   const fg = useRef<HTMLDivElement>(null);
+  const head = useRef<HTMLDivElement>(null);
   const nameInput = useRef<HTMLInputElement>(null);
 
-  const startX = useRef(0);
-  const startY = useRef(0);
+  const start = useRef({ x: 0, y: 0 });
   const rawX = useRef(0);
   const base = useRef(0);
   const axis = useRef<'none' | 'x' | 'y'>('none');
   const pid = useRef<number | null>(null);
+  const longTimer = useRef(0);
+  const longFired = useRef(false);
   const moved = useRef(false);
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<'none' | 'pin' | 'delete'>('none');
   const [renaming, setRenaming] = useState(false);
 
   // The player only exists for the open row; every memo holding object URLs
@@ -77,50 +98,71 @@ export default function MemoRow({
     const li = host.current;
     if (!li) return;
     const pill = Math.max(0, Math.abs(x) - PILL_GAP);
+    li.dataset.swipe = x > 0 ? 'pin' : x < 0 ? 'delete' : 'none';
     li.style.setProperty('--reveal', `${pill}px`);
     li.style.setProperty('--reveal-ms', animate ? '0.32s' : '0s');
     li.style.setProperty('--icon-op', pill >= ICON_AT ? '1' : '0');
   };
 
   const close = (notify = true) => {
-    setOpen(false);
+    setOpen('none');
     slide(0, true);
     if (notify) onReveal(null);
   };
 
   useEffect(() => {
-    if (forceClosed && open) {
-      setOpen(false);
+    if ((forceClosed || selectMode) && open !== 'none') {
+      setOpen('none');
       slide(0, true);
     }
-  }, [forceClosed, open]);
+  }, [forceClosed, selectMode, open]);
 
   useEffect(() => {
     if (renaming) nameInput.current?.select();
   }, [renaming]);
 
+  const clearLong = () => {
+    if (longTimer.current) {
+      clearTimeout(longTimer.current);
+      longTimer.current = 0;
+    }
+  };
+
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (renaming) return;
     pid.current = e.pointerId;
-    startX.current = e.clientX;
-    startY.current = e.clientY;
-    base.current = open ? -REVEAL : 0;
+    start.current = { x: e.clientX, y: e.clientY };
+    base.current = open === 'delete' ? -REVEAL : open === 'pin' ? REVEAL : 0;
     axis.current = 'none';
     moved.current = false;
+    longFired.current = false;
+
+    if (!selectMode) {
+      longTimer.current = window.setTimeout(() => {
+        if (axis.current !== 'x' && !moved.current) {
+          longFired.current = true;
+          onLongPress(memo.id);
+        }
+      }, LONG_MS);
+    }
   };
 
   const onPointerMove = (e: ReactPointerEvent) => {
     if (pid.current !== e.pointerId) return;
-    const dx = e.clientX - startX.current;
-    const dy = e.clientY - startY.current;
+    const dx = e.clientX - start.current.x;
+    const dy = e.clientY - start.current.y;
 
     if (axis.current === 'none') {
       if (Math.abs(dx) > SLOP || Math.abs(dy) > SLOP) {
         moved.current = true;
-        if (Math.abs(dx) > Math.abs(dy)) {
+        clearLong();
+        if (Math.abs(dx) > Math.abs(dy) && !selectMode) {
           axis.current = 'x';
           try {
-            fg.current?.setPointerCapture(e.pointerId);
+            // Captured on the element that owns these handlers, or they stop
+            // firing the moment capture moves the target elsewhere.
+            head.current?.setPointerCapture(e.pointerId);
           } catch {
             /* pointer already gone */
           }
@@ -133,33 +175,47 @@ export default function MemoRow({
 
     if (axis.current === 'x') {
       e.preventDefault();
-      const x = Math.min(0, base.current + dx); // this row only opens leftward
+      const x = base.current + dx;
       rawX.current = x;
       const limit = REVEAL + 60;
-      slide(Math.abs(x) > limit ? -(limit + (Math.abs(x) - limit) * 0.25) : x, false);
+      slide(
+        Math.abs(x) > limit ? Math.sign(x) * (limit + (Math.abs(x) - limit) * 0.25) : x,
+        false,
+      );
     }
   };
 
   const onPointerUp = (e: ReactPointerEvent) => {
     if (pid.current !== e.pointerId) return;
     pid.current = null;
+    clearLong();
     const swiped = axis.current === 'x';
     axis.current = 'none';
 
     if (!swiped) {
-      if (moved.current || renaming) return;
-      if (open) close();
+      if (longFired.current || moved.current || renaming) return;
+      if (selectMode) onToggleSelect(memo.id);
+      else if (open !== 'none') close();
       else onExpand(expanded ? null : memo.id);
       return;
     }
 
     const width = fg.current?.offsetWidth ?? 320;
-    if (rawX.current < -width * COMMIT) {
+    const x = rawX.current;
+
+    if (x < -width * COMMIT) {
       slide(-width, true);
       window.setTimeout(() => onDelete(memo.id), 200);
-    } else if (rawX.current < -REVEAL * 0.55) {
-      setOpen(true);
+    } else if (x > width * COMMIT) {
+      onTogglePin(memo.id);
+      close();
+    } else if (x < -REVEAL * 0.55) {
+      setOpen('delete');
       slide(-REVEAL, true);
+      onReveal(memo.id);
+    } else if (x > REVEAL * 0.55) {
+      setOpen('pin');
+      slide(REVEAL, true);
       onReveal(memo.id);
     } else {
       close();
@@ -180,8 +236,22 @@ export default function MemoRow({
   return (
     <li className={`memo${expanded ? ' is-open' : ''}`} ref={host}>
       <button
-        className="memo__delete"
+        className="memo__action memo__action--pin"
         type="button"
+        tabIndex={open === 'pin' ? 0 : -1}
+        aria-label={memo.pinned ? `Unpin ${memo.name}` : `Pin ${memo.name}`}
+        onClick={() => {
+          onTogglePin(memo.id);
+          close();
+        }}
+      >
+        <PinIcon />
+      </button>
+
+      <button
+        className="memo__action memo__action--delete"
+        type="button"
+        tabIndex={open === 'delete' ? 0 : -1}
         aria-label={`Delete ${memo.name}`}
         onClick={() => onDelete(memo.id)}
       >
@@ -191,32 +261,50 @@ export default function MemoRow({
       <div className="memo__fg" ref={fg}>
         <div
           className="memo__head"
+          ref={head}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          {renaming ? (
-            <input
-              ref={nameInput}
-              className="memo__rename"
-              defaultValue={memo.name}
-              onBlur={commitRename}
-              onKeyDown={onNameKey}
-              aria-label="Recording name"
-            />
-          ) : (
-            <span
-              className="memo__name"
-              onDoubleClick={() => expanded && setRenaming(true)}
-            >
-              {memo.name}
+          <span className={`memo__check${selectMode ? ' is-shown' : ''}`}>
+            <SelectDot on={selected} />
+          </span>
+
+          <span className="memo__text">
+            {renaming ? (
+              <input
+                ref={nameInput}
+                className="memo__rename"
+                defaultValue={memo.name}
+                onBlur={commitRename}
+                onKeyDown={onNameKey}
+                onPointerDown={(e) => e.stopPropagation()}
+                aria-label="Recording name"
+              />
+            ) : (
+              <span
+                className="memo__name"
+                // Tapping the name of an open memo renames it. Closed, the tap
+                // belongs to the row and opens it instead.
+                onClick={(e) => {
+                  if (!expanded || selectMode) return;
+                  e.stopPropagation();
+                  setRenaming(true);
+                }}
+              >
+                {memo.pinned && <PinIcon size={12} className="memo__pin" />}
+                {memo.name}
+              </span>
+            )}
+            <span className="memo__meta">
+              <span>{formatWhen(memo.createdAt)}</span>
+              <span className="memo__length">{formatDuration(duration)}</span>
             </span>
-          )}
-          <span className="memo__meta">{formatDuration(duration)}</span>
+          </span>
         </div>
 
-        {expanded && (
+        {expanded && !selectMode && (
           <div className="memo__body">
             <Waveform
               peaks={peaks}
@@ -231,43 +319,50 @@ export default function MemoRow({
 
             <div className="transport">
               <button
-                className="transport__btn"
+                className="transport__btn transport__btn--edge"
                 type="button"
-                aria-label="Back 10 seconds"
-                onClick={() => player.skip(-10)}
+                aria-label={memo.pinned ? 'Unpin recording' : 'Pin recording'}
+                aria-pressed={!!memo.pinned}
+                onClick={() => onTogglePin(memo.id)}
               >
-                <Back10Icon />
+                <PinIcon size={22} />
               </button>
-              <button
-                className="transport__btn transport__btn--play"
-                type="button"
-                aria-label={player.playing ? 'Pause' : 'Play'}
-                onClick={player.toggle}
-              >
-                {player.playing ? <PauseIcon /> : <PlayIcon />}
-              </button>
-              <button
-                className="transport__btn"
-                type="button"
-                aria-label="Forward 10 seconds"
-                onClick={() => player.skip(10)}
-              >
-                <Forward10Icon />
-              </button>
-            </div>
 
-            <div className="memo__actions">
+              <div className="transport__center">
+                <button
+                  className="transport__btn"
+                  type="button"
+                  aria-label="Back 10 seconds"
+                  onClick={() => player.skip(-10)}
+                >
+                  <Back10Icon />
+                </button>
+                <button
+                  className="transport__btn transport__btn--play"
+                  type="button"
+                  aria-label={player.playing ? 'Pause' : 'Play'}
+                  onClick={player.toggle}
+                >
+                  {player.playing ? <PauseIcon /> : <PlayIcon />}
+                </button>
+                <button
+                  className="transport__btn"
+                  type="button"
+                  aria-label="Forward 10 seconds"
+                  onClick={() => player.skip(10)}
+                >
+                  <Forward10Icon />
+                </button>
+              </div>
+
               <button
-                className="linkbtn"
+                className="transport__btn transport__btn--edge"
                 type="button"
                 disabled={busy}
+                aria-label="Add to recording"
                 onClick={() => onResume(memo.id)}
               >
-                <MicIcon size={15} />
-                <span>Add to Recording</span>
-              </button>
-              <button className="linkbtn" type="button" onClick={() => setRenaming(true)}>
-                Rename
+                <PlusIcon size={22} />
               </button>
             </div>
           </div>
