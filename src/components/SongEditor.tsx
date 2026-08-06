@@ -10,6 +10,7 @@ import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
 import {
   BackIcon,
+  ComposeIcon,
   DuplicateIcon,
   EllipsisIcon,
   PinIcon,
@@ -168,23 +169,6 @@ export default function SongEditor({ id, onBack }: Props) {
         </button>
       </header>
 
-      <nav className="tabs" aria-label="Song sections">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            className={`tabs__tab${tab === t ? ' is-on' : ''}`}
-            type="button"
-            aria-current={tab === t}
-            onClick={() => {
-              if (editing) finishEditing();
-              setTab(t);
-            }}
-          >
-            {TAB_LABEL[t]}
-          </button>
-        ))}
-      </nav>
-
       <ScrollArea dragScroll={!editing}>
         {tab === 'lyrics' ? (
           <LyricsTab
@@ -216,12 +200,34 @@ export default function SongEditor({ id, onBack }: Props) {
           onDone={finishEditing}
         />
       ) : (
-        <div className="dock dock--editor">
+        /* Tabs live along the bottom, within thumb reach, with the pencil in
+           the corner beside them. The outer slots are equal width so the tabs
+           stay centred whether or not the pencil is there. */
+        <div className="edock">
           {tab === 'lyrics' && (
-            <button className="chip chip--wide" type="button" onClick={() => setEditing(true)}>
-              Edit
+            <button
+              className="iconbtn edock__edit"
+              type="button"
+              aria-label="Edit lyrics"
+              onClick={() => setEditing(true)}
+            >
+              <ComposeIcon />
             </button>
           )}
+
+          <nav className="tabs" aria-label="Song sections">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                className={`tabs__tab${tab === t ? ' is-on' : ''}`}
+                type="button"
+                aria-current={tab === t}
+                onClick={() => setTab(t)}
+              >
+                {TAB_LABEL[t]}
+              </button>
+            ))}
+          </nav>
         </div>
       )}
 

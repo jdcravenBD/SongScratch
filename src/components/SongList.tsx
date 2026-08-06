@@ -154,7 +154,7 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
         ) : sections ? (
           sections.map((section) => (
             <section className="group" key={section.key}>
-              <h3 className="group__label">{section.label}</h3>
+              {section.label && <h3 className="group__label">{section.label}</h3>}
               <ul className="list">
                 {section.songs.map((song, i) => (
                   <SongRow

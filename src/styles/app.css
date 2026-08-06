@@ -85,6 +85,26 @@ body,
   }
 }
 
+/*
+ * Nail the page down. The app is a fixed frame with its own scrollers inside,
+ * so the document itself must never move — otherwise a drag that starts
+ * anywhere but the list drags the whole interface up and down with it, and iOS
+ * rubber-bands the lot. `position: fixed` on the body is what actually stops
+ * it there; `overflow: hidden` alone does not.
+ */
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -225,9 +245,9 @@ input {
   justify-content: center;
   line-height: 1;
   white-space: nowrap;
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 500;
-  padding: 7px 14px;
+  padding: 10px 18px;
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
@@ -272,6 +292,8 @@ input {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  /* Keep the bounce at the ends of the list from chaining out to the page. */
+  overscroll-behavior: contain;
   scrollbar-width: none; /* Firefox — we draw our own */
   padding: calc(var(--safe-t) + var(--nav-h)) var(--safe-r)
     calc(var(--dock-h) + var(--safe-b) + 16px) var(--safe-l);
@@ -716,8 +738,8 @@ input {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  height: 42px;
-  padding: 0 14px;
+  height: 48px;
+  padding: 0 16px;
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
@@ -789,9 +811,9 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  max-width: 42px;
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
   margin-left: 12px;
   overflow: hidden;
   border-radius: var(--pill);
@@ -880,10 +902,10 @@ input {
  */
 
 .editor {
-  --ebar-h: 44px;
-  --tabs-h: 40px;
-  --nav-h: calc(var(--ebar-h) + var(--tabs-h));
-  --dock-h: 58px;
+  --ebar-h: 52px;
+  /* Only the top bar sits above the page now; the tabs moved to the bottom. */
+  --nav-h: var(--ebar-h);
+  --dock-h: 66px;
   animation: editor-in 0.26s var(--ease) both;
 }
 
@@ -921,8 +943,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--pill);
   color: var(--text);
   background: var(--fill);
@@ -950,24 +972,41 @@ input {
   cursor: default;
 }
 
-/* Chords | Lyrics | Voice */
-.tabs {
+/* The bottom bar: pencil in the corner, tabs centred. */
+.edock {
   position: absolute;
-  top: calc(var(--safe-t) + var(--ebar-h));
   left: 0;
   right: 0;
-  height: var(--tabs-h);
-  z-index: 30;
+  bottom: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  padding: 10px calc(var(--edge) + var(--safe-r)) calc(10px + var(--safe-b))
+    calc(var(--edge) + var(--safe-l));
+}
+
+/* Taken out of the flow so the tabs centre on the screen rather than on
+   whatever space is left beside it. */
+.edock__edit {
+  position: absolute;
+  left: calc(var(--edge) + var(--safe-l));
+  bottom: calc(10px + var(--safe-b));
+}
+
+/* Chords | Lyrics | Voice */
+.tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 
 .tabs__tab {
-  padding: 6px 15px;
+  padding: 10px 18px;
   border-radius: var(--pill);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-2);
   border: 1px solid transparent;
@@ -1050,15 +1089,6 @@ input {
 
 /* ------------------------------------------------------------------- dock -- */
 
-.dock--editor {
-  display: flex;
-  justify-content: center;
-}
-
-.chip--wide {
-  padding: 9px 34px;
-  font-size: 15px;
-}
 
 /* -------------------------------------------------------------- format bar --
  * Rides directly on top of the on-screen keyboard: --kb is how much of the
@@ -1092,7 +1122,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
+  height: 40px;
   border-radius: var(--pill);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
@@ -1477,27 +1507,21 @@ input {
   .fmt__bar,
   .fmt__panel,
   .tabs__tab.is-on {
-    /* Two layers: the vertical sheen down the face, and a soft pool of light
-       gathered at the top where the surface curves away. */
-    background:
-      linear-gradient(
-        to bottom,
-        rgba(255, 255, 255, 0.17) 0%,
-        rgba(255, 255, 255, 0.085) 48%,
-        rgba(255, 255, 255, 0.05) 100%
-      ),
-      radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, 0.1), transparent 62%);
-    /* Brighter and more saturated than frosting: a lens gathers light rather
-       than just scattering it. */
-    backdrop-filter: blur(24px) saturate(200%) brightness(1.12);
-    -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.12);
+    /*
+     * Flat. The real material reads as one even sheet of tinted glass, not as
+     * something with a lit top and a dark bottom — a vertical gradient is the
+     * single thing that most gives away a CSS imitation, and it was reading as
+     * the old frosted style showing through.
+     */
+    background: rgba(255, 255, 255, 0.13);
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
     border: none;
     box-shadow:
-      inset 0 1px 0.5px rgba(255, 255, 255, 0.62),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
-      inset 0 -1px 1px rgba(255, 255, 255, 0.14),
-      0 2px 10px rgba(0, 0, 0, 0.3),
-      0 8px 26px rgba(0, 0, 0, 0.22);
+      /* A hairline a touch brighter than the fill, all the way round. This is
+         the whole of the edge treatment — no rim light, no bottom bounce. */
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+      0 1px 8px rgba(0, 0, 0, 0.24);
   }
 
   /* The one solid control keeps its weight; it is the object light falls on,
@@ -1506,49 +1530,38 @@ input {
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    box-shadow:
-      inset 0 1px 0.5px rgba(255, 255, 255, 0.9),
-      0 2px 10px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
   }
 
-  /* Pressing glass should look like pushing it into the page: the rim light
-     dims and the object settles closer to the surface. */
+  /* Pressing brightens the sheet rather than relighting its edges. */
   .chip:active,
   .compose:active,
   .iconbtn:active:not(:disabled) {
-    box-shadow:
-      inset 0 1px 0.5px rgba(255, 255, 255, 0.3),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
-      0 1px 4px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.22);
   }
 
   /* The swipe actions are glass too, over the row rather than the page. */
   .row__action--pin {
-    background: rgba(120, 120, 128, 0.5);
-    backdrop-filter: blur(18px) saturate(180%) brightness(1.1);
-    -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(1.1);
-    box-shadow:
-      inset 0 1px 0.5px rgba(255, 255, 255, 0.45),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16);
+    background: rgba(120, 120, 128, 0.55);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
   }
 
   .row__action--delete {
-    background: rgba(255, 69, 58, 0.82);
-    backdrop-filter: blur(18px) saturate(180%);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    box-shadow:
-      inset 0 1px 0.5px rgba(255, 255, 255, 0.4),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+    background: rgba(255, 69, 58, 0.85);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
   }
 
   /* The sheet is a glass slab rather than a grey card. */
   .sheet__panel {
-    background: rgba(48, 48, 52, 0.72);
-    backdrop-filter: blur(30px) saturate(190%) brightness(1.08);
-    -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(1.08);
+    background: rgba(58, 58, 62, 0.78);
+    backdrop-filter: blur(34px) saturate(180%);
+    -webkit-backdrop-filter: blur(34px) saturate(180%);
     box-shadow:
-      inset 0 1px 0.5px rgba(255, 255, 255, 0.5),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
       0 10px 40px rgba(0, 0, 0, 0.5);
   }
 
@@ -1567,7 +1580,7 @@ input {
   }
 
   .fmt__tool {
-    height: 30px;
+    height: 36px;
   }
 
   .fmt__panel {
