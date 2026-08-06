@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react';
 import type { Song } from '../types';
 import { deleteSongs, getSong, putSong } from '../db/songs';
 import { extractMeta, setBlockKind, type BlockKind } from '../lib/lyrics';
+import { newId } from '../lib/id';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import ScrollArea from './ScrollArea';
 import LyricsTab from './LyricsTab';
@@ -250,7 +251,7 @@ export default function SongEditor({ id, onBack }: Props) {
                 const now = Date.now();
                 await putSong({
                   ...song,
-                  id: crypto.randomUUID(),
+                  id: newId(),
                   title: song.title ? `${song.title} copy` : '',
                   pinned: false,
                   createdAt: now,

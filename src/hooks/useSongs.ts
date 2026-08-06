@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Song } from '../types';
+import { newId } from '../lib/id';
 import {
   countSongs,
   deleteSongs as dbDelete,
@@ -131,9 +132,20 @@ export function useSongs(): SongsApi {
   useEffect(() => {
     let alive = true;
     (async () => {
-      await seedIfFirstRun();
-      const all = await getAllSongs();
-      if (alive) setSongs(all);
+      // Seeding is a nicety. If it fails, still show whatever is in the store —
+      // letting it take the load down with it leaves a permanently blank list
+      // with no way back.
+      try {
+        await seedIfFirstRun();
+      } catch {
+        /* fall through to the read */
+      }
+      try {
+        const all = await getAllSongs();
+        if (alive) setSongs(all);
+      } catch {
+        if (alive) setSongs([]);
+      }
     })();
     return () => {
       alive = false;
@@ -163,7 +175,7 @@ export function useSongs(): SongsApi {
         .filter((s) => ids.includes(s.id))
         .map<Song>((s) => ({
           ...s,
-          id: crypto.randomUUID(),
+          id: newId(),
           title: s.title ? `${s.title} copy` : '',
           pinned: false,
           createdAt: now,

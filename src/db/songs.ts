@@ -9,6 +9,7 @@
  */
 
 import type { Song } from '../types';
+import { newId } from '../lib/id';
 
 const DB_NAME = 'song-scratch';
 const DB_VERSION = 1;
@@ -85,7 +86,7 @@ export async function countSongs(): Promise<number> {
 export function newSong(overrides: Partial<Song> = {}): Song {
   const now = Date.now();
   return {
-    id: crypto.randomUUID(),
+    id: newId(),
     title: '',
     createdAt: now,
     updatedAt: now,
