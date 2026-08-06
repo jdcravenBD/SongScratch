@@ -1440,3 +1440,100 @@ input {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================ liquid glass ==
+ * On a real handset the controls are lit as glass rather than as flat frosted
+ * panes. This is the complement of the desktop-frame query above, so it applies
+ * only where the frame does not: previewing in a browser keeps the plainer
+ * material, which is what was asked for there.
+ *
+ * Apple's is a native material that genuinely refracts what is behind it. CSS
+ * cannot bend a backdrop, so what is reproduced here is everything else that
+ * sells it — a brighter, more saturated lens, a specular rim where light
+ * catches the top edge, a thin bright boundary all the way round, bounce light
+ * off the inside of the bottom edge, and enough drop shadow to read as a solid
+ * object floating over the page rather than a tint painted onto it.
+ */
+@media (max-width: 619px), (max-height: 559px) {
+  .chip,
+  .search,
+  .compose,
+  .iconbtn,
+  .fmt__bar,
+  .fmt__panel,
+  .tabs__tab.is-on {
+    /* Two layers: the vertical sheen down the face, and a soft pool of light
+       gathered at the top where the surface curves away. */
+    background:
+      linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.17) 0%,
+        rgba(255, 255, 255, 0.085) 48%,
+        rgba(255, 255, 255, 0.05) 100%
+      ),
+      radial-gradient(120% 100% at 50% 0%, rgba(255, 255, 255, 0.1), transparent 62%);
+    /* Brighter and more saturated than frosting: a lens gathers light rather
+       than just scattering it. */
+    backdrop-filter: blur(24px) saturate(200%) brightness(1.12);
+    -webkit-backdrop-filter: blur(24px) saturate(200%) brightness(1.12);
+    border: none;
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.62),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.2),
+      inset 0 -1px 1px rgba(255, 255, 255, 0.14),
+      0 2px 10px rgba(0, 0, 0, 0.3),
+      0 8px 26px rgba(0, 0, 0, 0.22);
+  }
+
+  /* The one solid control keeps its weight; it is the object light falls on,
+     not a piece of glass. */
+  .chip--solid {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.9),
+      0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Pressing glass should look like pushing it into the page: the rim light
+     dims and the object settles closer to the surface. */
+  .chip:active,
+  .compose:active,
+  .iconbtn:active:not(:disabled) {
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.3),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
+      0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  /* The swipe actions are glass too, over the row rather than the page. */
+  .row__action--pin {
+    background: rgba(120, 120, 128, 0.5);
+    backdrop-filter: blur(18px) saturate(180%) brightness(1.1);
+    -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(1.1);
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.45),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16);
+  }
+
+  .row__action--delete {
+    background: rgba(255, 69, 58, 0.82);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.4),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
+  }
+
+  /* The sheet is a glass slab rather than a grey card. */
+  .sheet__panel {
+    background: rgba(48, 48, 52, 0.72);
+    backdrop-filter: blur(30px) saturate(190%) brightness(1.08);
+    -webkit-backdrop-filter: blur(30px) saturate(190%) brightness(1.08);
+    box-shadow:
+      inset 0 1px 0.5px rgba(255, 255, 255, 0.5),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+      0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+}
