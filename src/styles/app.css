@@ -77,12 +77,20 @@ body,
  * than the edge it is supposed to be on. `dvh` tracks the viewport as those
  * toolbars come and go. The desktop frame overrides #root again further down.
  */
+/* `--app-h` is measured from window.innerHeight in main.tsx; the dvh is only a
+   fallback for the first paint before that runs. */
 @supports (height: 100dvh) {
   html,
   body,
   #root {
     height: 100dvh;
   }
+}
+
+html,
+body,
+#root {
+  height: var(--app-h, 100dvh);
 }
 
 /*
@@ -934,9 +942,40 @@ input {
     calc(var(--edge) + var(--safe-l));
 }
 
-.ebar__mid {
+.ebar__end {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+/* Undo and redo read as one control, so they share a single pill with a
+   hairline between them rather than sitting apart as two. */
+.pillgroup {
+  display: flex;
+  align-items: center;
+  border-radius: var(--pill);
+  background: var(--fill);
+  border: 1px solid var(--stroke);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  overflow: hidden;
+}
+
+.pillgroup .iconbtn {
+  border: none;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.pillgroup .iconbtn + .iconbtn {
+  box-shadow: inset 1px 0 0 var(--stroke);
+}
+
+.pillgroup .iconbtn:active:not(:disabled) {
+  transform: none;
+  background: var(--fill-press);
 }
 
 .iconbtn {
@@ -990,7 +1029,7 @@ input {
    whatever space is left beside it. */
 .edock__edit {
   position: absolute;
-  left: calc(var(--edge) + var(--safe-l));
+  right: calc(var(--edge) + var(--safe-r));
   bottom: calc(10px + var(--safe-b));
 }
 
@@ -1287,21 +1326,22 @@ input {
   transform: rotate(-20deg);
 }
 
-/* ------------------------------------------------------------ action sheet -- */
+/* --------------------------------------------------------------- ellipsis --
+ * Unfolds from the button that opened it rather than arriving from the bottom
+ * of the screen, so the menu stays attached to what it belongs to.
+ */
 
-.sheet {
+.menu {
   position: absolute;
   inset: 0;
   z-index: 60;
-  display: flex;
-  align-items: flex-end;
 }
 
-.sheet__scrim {
+.menu__scrim {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  animation: fade-in 0.18s ease both;
+  background: rgba(0, 0, 0, 0.25);
+  animation: fade-in 0.16s ease both;
 }
 
 @keyframes fade-in {
@@ -1313,20 +1353,24 @@ input {
   }
 }
 
-.sheet__panel {
-  position: relative;
-  width: 100%;
-  margin: 0 8px calc(8px + var(--safe-b));
-  border-radius: 16px;
+.menu__panel {
+  position: absolute;
+  top: calc(var(--safe-t) + var(--ebar-h) - 2px);
+  right: calc(var(--edge) + var(--safe-r));
+  min-width: 224px;
+  border-radius: 15px;
   overflow: hidden;
-  background: #1c1c1e;
-  animation: sheet-in 0.24s var(--ease) both;
+  background: #1f1f21;
+  border: 1px solid var(--stroke);
+  /* Grows out of the corner it was opened from. */
+  transform-origin: top right;
+  animation: menu-in 0.18s var(--ease) both;
 }
 
-@keyframes sheet-in {
+@keyframes menu-in {
   from {
     opacity: 0;
-    transform: translateY(18px);
+    transform: scale(0.88);
   }
   to {
     opacity: 1;
@@ -1334,28 +1378,38 @@ input {
   }
 }
 
-.sheet__item {
+.menu__item {
   display: flex;
   align-items: center;
   gap: 13px;
   width: 100%;
-  padding: 14px 18px;
+  padding: 13px 16px;
   font-size: 16px;
   color: var(--text);
   text-align: left;
   transition: background 0.15s ease;
 }
 
-.sheet__item:hover {
-  background: rgba(255, 255, 255, 0.06);
+.menu__item:hover {
+  background: rgba(255, 255, 255, 0.07);
 }
 
-.sheet__item + .sheet__item {
+.menu__item + .menu__item {
   border-top: 1px solid var(--hairline);
 }
 
-.sheet__item--danger {
+.menu__item--danger {
   color: var(--danger);
+}
+
+/* ------------------------------------------------------- last-edited stamp -- */
+
+.stamp {
+  margin: 0 0 10px;
+  padding: 0 calc(var(--edge) + var(--safe-r)) 0 calc(var(--edge) + var(--safe-l));
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
 }
 
 /* ============================================================= device frame ==
@@ -1504,8 +1558,10 @@ input {
   .search,
   .compose,
   .iconbtn,
+  .pillgroup,
   .fmt__bar,
   .fmt__panel,
+  .menu__panel,
   .tabs__tab.is-on {
     /*
      * Flat. The real material reads as one even sheet of tinted glass, not as
@@ -1513,15 +1569,27 @@ input {
      * single thing that most gives away a CSS imitation, and it was reading as
      * the old frosted style showing through.
      */
-    background: rgba(255, 255, 255, 0.13);
+    /* Kept dark. Against a black page the blur has almost nothing to work with,
+       so the tint is most of what you see — too much of it and the control
+       reads as a pale grey slab sitting on the black rather than as glass over
+       it. This is close to the weight iOS's own bars carry. */
+    background: rgba(255, 255, 255, 0.075);
     backdrop-filter: blur(30px) saturate(180%);
     -webkit-backdrop-filter: blur(30px) saturate(180%);
     border: none;
     box-shadow:
       /* A hairline a touch brighter than the fill, all the way round. This is
          the whole of the edge treatment — no rim light, no bottom bounce. */
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.1),
       0 1px 8px rgba(0, 0, 0, 0.24);
+  }
+
+  /* Inside a group the buttons are cut out of the one pill, not stacked on it. */
+  .pillgroup .iconbtn {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
   }
 
   /* The one solid control keeps its weight; it is the object light falls on,
@@ -1572,19 +1640,19 @@ input {
    * as possible above it.
    */
   .fmt {
-    padding-bottom: 5px;
+    padding-bottom: 7px;
   }
 
   .fmt__bar {
-    padding: 3px 6px;
+    padding: 6px 8px;
   }
 
   .fmt__tool {
-    height: 36px;
+    height: 46px;
   }
 
   .fmt__panel {
-    margin-bottom: 5px;
-    padding: 5px 8px;
+    margin-bottom: 7px;
+    padding: 6px 9px;
   }
 }

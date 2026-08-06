@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react';
 import type { Song } from '../types';
 import { deleteSongs, getSong, putSong } from '../db/songs';
 import { extractMeta, setBlockKind, type BlockKind } from '../lib/lyrics';
+import { formatStamp } from '../lib/format';
 import { newId } from '../lib/id';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import ScrollArea from './ScrollArea';
@@ -70,7 +71,7 @@ export default function SongEditor({ id, onBack }: Props) {
       const current = await getSong(id);
       if (!current) return;
       const meta = extractMeta(html);
-      await putSong({
+      const next: Song = {
         ...current,
         lyrics: html,
         title: meta.title,
@@ -78,7 +79,12 @@ export default function SongEditor({ id, onBack }: Props) {
         description: meta.description,
         sectionCount: meta.sectionCount,
         updatedAt: Date.now(),
-      });
+      };
+      await putSong(next);
+      // Keeps the "last edited" line honest while typing. Safe to re-render:
+      // LyricsTab loads its document per song id, so this never rewrites the
+      // element under the caret.
+      setSong((prev) => (prev ? { ...prev, updatedAt: next.updatedAt } : prev));
     },
     [id],
   );
@@ -136,49 +142,55 @@ export default function SongEditor({ id, onBack }: Props) {
           <BackIcon />
         </button>
 
-        <div className="ebar__mid">
+        <div className="ebar__end">
+          <div className="pillgroup">
+            <button
+              className="iconbtn"
+              type="button"
+              aria-label="Undo"
+              disabled={!editing}
+              onMouseDown={keep}
+              onClick={() => document.execCommand('undo')}
+            >
+              <UndoIcon />
+            </button>
+            <button
+              className="iconbtn"
+              type="button"
+              aria-label="Redo"
+              disabled={!editing}
+              onMouseDown={keep}
+              onClick={() => document.execCommand('redo')}
+            >
+              <RedoIcon />
+            </button>
+          </div>
+
           <button
             className="iconbtn"
             type="button"
-            aria-label="Undo"
-            disabled={!editing}
-            onMouseDown={keep}
-            onClick={() => document.execCommand('undo')}
+            aria-label="More actions"
+            onClick={() => setMenuOpen(true)}
           >
-            <UndoIcon />
-          </button>
-          <button
-            className="iconbtn"
-            type="button"
-            aria-label="Redo"
-            disabled={!editing}
-            onMouseDown={keep}
-            onClick={() => document.execCommand('redo')}
-          >
-            <RedoIcon />
+            <EllipsisIcon />
           </button>
         </div>
-
-        <button
-          className="iconbtn"
-          type="button"
-          aria-label="More actions"
-          onClick={() => setMenuOpen(true)}
-        >
-          <EllipsisIcon />
-        </button>
       </header>
 
       <ScrollArea dragScroll={!editing}>
         {tab === 'lyrics' ? (
-          <LyricsTab
-            song={song}
-            editing={editing}
-            docRef={docRef}
-            onRequestEdit={() => setEditing(true)}
-            onInput={handleInput}
-            onLeave={finishEditing}
-          />
+          <>
+            {/* Outside the editable document, so it can't be typed into. */}
+            <p className="stamp">{formatStamp(song.updatedAt)}</p>
+            <LyricsTab
+              song={song}
+              editing={editing}
+              docRef={docRef}
+              onRequestEdit={() => setEditing(true)}
+              onInput={handleInput}
+              onLeave={finishEditing}
+            />
+          </>
         ) : (
           <div className="empty">
             <p className="empty__title">{TAB_LABEL[tab]}</p>
@@ -200,9 +212,9 @@ export default function SongEditor({ id, onBack }: Props) {
           onDone={finishEditing}
         />
       ) : (
-        /* Tabs live along the bottom, within thumb reach, with the pencil in
-           the corner beside them. The outer slots are equal width so the tabs
-           stay centred whether or not the pencil is there. */
+        /* Tabs live along the bottom, within thumb reach. The pencil is taken
+           out of the flow into the corner so the tabs centre on the screen
+           rather than on the space left beside it. */
         <div className="edock">
           {tab === 'lyrics' && (
             <button
@@ -232,16 +244,16 @@ export default function SongEditor({ id, onBack }: Props) {
       )}
 
       {menuOpen && (
-        <div className="sheet" role="dialog" aria-label="Song actions">
+        <div className="menu" role="dialog" aria-label="Song actions">
           <button
-            className="sheet__scrim"
+            className="menu__scrim"
             type="button"
             aria-label="Close menu"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="sheet__panel">
+          <div className="menu__panel">
             <button
-              className="sheet__item"
+              className="menu__item"
               type="button"
               onClick={async () => {
                 await patch({ pinned: !song.pinned });
@@ -252,7 +264,7 @@ export default function SongEditor({ id, onBack }: Props) {
               <span>{song.pinned ? 'Unpin Song' : 'Pin Song'}</span>
             </button>
             <button
-              className="sheet__item"
+              className="menu__item"
               type="button"
               onClick={async () => {
                 const now = Date.now();
@@ -272,7 +284,7 @@ export default function SongEditor({ id, onBack }: Props) {
               <span>Duplicate Song</span>
             </button>
             <button
-              className="sheet__item sheet__item--danger"
+              className="menu__item menu__item--danger"
               type="button"
               onClick={async () => {
                 // Drop the pending write first, or it would resurrect the song.

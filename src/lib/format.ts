@@ -22,6 +22,25 @@ export function formatWhen(ts: number): string {
   });
 }
 
+/**
+ * The full "last edited" line at the top of a song — e.g.
+ * "August 6, 2026 at 1:12am". Lowercased and closed up around the meridiem,
+ * which is how iOS writes it and not what toLocaleTimeString gives you.
+ */
+export function formatStamp(ts: number): string {
+  const d = new Date(ts);
+  const date = d.toLocaleDateString([], {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const time = d
+    .toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    .replace(/\s+/g, '')
+    .toLowerCase();
+  return `${date} at ${time}`;
+}
+
 /** Whole days between two dates, ignoring the time of day. */
 function dayDiff(a: Date, b: Date): number {
   const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
