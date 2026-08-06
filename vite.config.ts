@@ -39,9 +39,14 @@ function precacheServiceWorker(): Plugin {
         }
 
         const list = assets.map((f) => `  './${f}',`).join('\n');
-        const sw = readFileSync(swPath, 'utf8');
-        writeFileSync(swPath, sw.replace('  /* BUILD_ASSETS */', list), 'utf8');
-        this.info(`precached ${assets.length} assets into sw.js`);
+        // A fresh cache key per build, so the activate handler evicts the last
+        // one instead of serving its assets over the top of this build.
+        const buildId = Date.now().toString(36);
+        const sw = readFileSync(swPath, 'utf8')
+          .replace('  /* BUILD_ASSETS */', list)
+          .replace('__BUILD_ID__', buildId);
+        writeFileSync(swPath, sw, 'utf8');
+        this.info(`precached ${assets.length} assets into sw.js (build ${buildId})`);
       },
     },
   };

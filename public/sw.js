@@ -13,7 +13,13 @@
  * Bump CACHE_VERSION on release to evict the previous build.
  */
 
-const CACHE_VERSION = 'songscratch-v1';
+/*
+ * Stamped with the build id at build time. It has to change every build: the
+ * activate handler only evicts caches whose key differs, so a fixed version
+ * means an old build's assets are kept forever and can be served over a new
+ * one — which looks exactly like a change that "didn't apply".
+ */
+const CACHE_VERSION = 'songscratch-__BUILD_ID__';
 const SHELL = './index.html';
 
 /**

@@ -10,6 +10,8 @@ interface Props {
   docRef: RefObject<HTMLDivElement | null>;
   onRequestEdit: () => void;
   onInput: (html: string) => void;
+  /** Focus left the page — iOS's own keyboard "Done" among other ways out. */
+  onLeave: () => void;
 }
 
 /**
@@ -22,10 +24,25 @@ interface Props {
  * children under a caret would destroy the selection and the undo stack on
  * every keystroke.
  */
-export default function LyricsTab({ song, editing, docRef, onRequestEdit, onInput }: Props) {
+export default function LyricsTab({
+  song,
+  editing,
+  docRef,
+  onRequestEdit,
+  onInput,
+  onLeave,
+}: Props) {
   /** Where the user clicked, held until the element is actually editable. */
   const pendingCaret = useRef<{ x: number; y: number } | null>(null);
   const loadedFor = useRef<string | null>(null);
+  /**
+   * When this page appeared. The tap that opened the song finishes *after* the
+   * editor has rendered underneath the finger, so its click lands here and
+   * would start editing straight away — the song would open with the keyboard
+   * already up. Anything arriving before the screen has settled isn't a
+   * deliberate tap on the lyrics.
+   */
+  const shownAt = useRef(performance.now());
 
   // Load the document once per song.
   useEffect(() => {
@@ -69,6 +86,7 @@ export default function LyricsTab({ song, editing, docRef, onRequestEdit, onInpu
 
   const handleClick = (e: MouseEvent) => {
     if (editing) return;
+    if (performance.now() - shownAt.current < 400) return; // see shownAt
     // Remember the point now; the element can only take a caret once it's
     // editable, which is a state change away.
     pendingCaret.current = { x: e.clientX, y: e.clientY };
@@ -87,6 +105,10 @@ export default function LyricsTab({ song, editing, docRef, onRequestEdit, onInpu
       aria-label="Lyrics"
       onClick={handleClick}
       onInput={(e) => onInput(e.currentTarget.innerHTML)}
+      // Toolbar presses suppress mousedown, so they never blur this — a blur
+      // really does mean the user has left, including via the keyboard's own
+      // Done button on iOS. Treat it as finishing.
+      onBlur={() => editing && onLeave()}
     />
   );
 }

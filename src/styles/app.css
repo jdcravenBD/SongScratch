@@ -70,6 +70,21 @@ body,
   height: 100%;
 }
 
+/*
+ * On iOS, `100%` resolves against the *small* viewport — the one with Safari's
+ * toolbars showing — so the app stops short of the screen and everything
+ * anchored to its bottom, the search field and New Song especially, sits higher
+ * than the edge it is supposed to be on. `dvh` tracks the viewport as those
+ * toolbars come and go. The desktop frame overrides #root again further down.
+ */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -1535,5 +1550,28 @@ input {
       inset 0 1px 0.5px rgba(255, 255, 255, 0.5),
       inset 0 0 0 0.5px rgba(255, 255, 255, 0.16),
       0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  /*
+   * iOS puts its own shortcut bar directly above the keyboard, which ours then
+   * stacks on top of. A web page can neither add to that bar nor hide it — only
+   * a native wrapper can — so the next best thing is to take up as little room
+   * as possible above it.
+   */
+  .fmt {
+    padding-bottom: 5px;
+  }
+
+  .fmt__bar {
+    padding: 3px 6px;
+  }
+
+  .fmt__tool {
+    height: 30px;
+  }
+
+  .fmt__panel {
+    margin-bottom: 5px;
+    padding: 5px 8px;
   }
 }

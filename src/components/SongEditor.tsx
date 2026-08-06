@@ -193,6 +193,7 @@ export default function SongEditor({ id, onBack }: Props) {
             docRef={docRef}
             onRequestEdit={() => setEditing(true)}
             onInput={handleInput}
+            onLeave={finishEditing}
           />
         ) : (
           <div className="empty">
