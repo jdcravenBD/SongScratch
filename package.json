@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "phone": "npm run build && vite preview --host --mode https",
+    "phone": "npm run build && vite preview --host",
+    "phone:https": "npm run build && vite preview --host --mode https",
     "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {

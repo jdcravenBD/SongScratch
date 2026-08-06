@@ -33,18 +33,32 @@ microphone (for voice notes) works without any certificate setup.
 
 ## Running it on your iPhone 12 — no Mac needed
 
-Voice notes need the microphone, and browsers only hand that over on a secure
-origin. Two ways to get one:
-
-### Option A — over your Wi-Fi (fastest for a quick look)
+### Option A — over your network (fastest for a quick look)
 
 ```bash
 npm run phone
 ```
 
-Vite prints a `https://192.168.x.x:4173` address. Open it in Safari on the
-iPhone, accept the self-signed-certificate warning once, and you're in. Phone
-and PC must be on the same Wi-Fi.
+Vite prints several addresses. **Use the one on your LAN subnet** — the
+`192.168.x.x` one. The others are not reachable from a phone and will fail with
+"Safari can't open the page":
+
+- `25.x.x.x` (Hamachi), `10.x.x.x` (NordVPN/NordLynx) — VPN adapters
+- `169.254.x.x` — link-local fallback, meaning that adapter has no real address
+
+This serves over plain HTTP, so there is no certificate warning. Everything
+works except the microphone, which browsers only grant on a secure origin — so
+reach for this until the voice tab exists.
+
+### Option B — HTTPS on your network (needed for voice memos)
+
+```bash
+npm run phone:https
+```
+
+The certificate is self-signed, so Safari shows **"This Connection Is Not
+Private."** That is expected, not a failure. Tap **Show Details** → **visit this
+website** → **Visit Website**. Safari remembers it for that address.
 
 ### Option B — GitHub Pages (a real certificate, works anywhere)
 
@@ -106,7 +120,8 @@ section a heading, the section's chord progression (bold), and the lyrics.
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | dev server on localhost |
-| `npm run phone` | build + serve over HTTPS on your LAN, for the iPhone |
+| `npm run phone` | build + serve over HTTP on your LAN, for the iPhone |
+| `npm run phone:https` | same but HTTPS (self-signed) — needed for the microphone |
 | `npm run host` | dev server over HTTPS on your LAN (quick checks) |
 | `npm run typecheck` | TypeScript, no emit |
 | `npm run build` | typecheck + production build to `dist/` |
