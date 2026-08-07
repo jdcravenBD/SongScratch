@@ -8,6 +8,7 @@ import Waveform from './Waveform';
 import {
   Back10Icon,
   Forward10Icon,
+  GripIcon,
   PauseIcon,
   PinIcon,
   PlayIcon,
@@ -25,6 +26,10 @@ const ICON_AT = 40;
 
 interface Props {
   memo: Memo;
+  index: number;
+  /** Offset while a reorder is in flight, in px. */
+  lift: number;
+  dragging: boolean;
   expanded: boolean;
   /** True while a recording is in progress anywhere on the screen. */
   busy: boolean;
@@ -39,6 +44,7 @@ interface Props {
   onLongPress: (id: string) => void;
   onToggleSelect: (id: string) => void;
   onReveal: (id: string | null) => void;
+  onGrip: (index: number, e: ReactPointerEvent) => void;
 }
 
 /**
@@ -53,6 +59,9 @@ interface Props {
  */
 export default function MemoRow({
   memo,
+  index,
+  lift,
+  dragging,
   expanded,
   busy,
   selectMode,
@@ -66,6 +75,7 @@ export default function MemoRow({
   onLongPress,
   onToggleSelect,
   onReveal,
+  onGrip,
 }: Props) {
   const host = useRef<HTMLLIElement>(null);
   const fg = useRef<HTMLDivElement>(null);
@@ -234,7 +244,11 @@ export default function MemoRow({
   };
 
   return (
-    <li className={`memo${expanded ? ' is-open' : ''}`} ref={host}>
+    <li
+      className={`memo${expanded ? ' is-open' : ''}${dragging ? ' is-dragging' : ''}`}
+      ref={host}
+      style={lift ? { transform: `translate3d(0,${lift}px,0)` } : undefined}
+    >
       <button
         className="memo__action memo__action--pin"
         type="button"
@@ -267,6 +281,21 @@ export default function MemoRow({
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
+          {/* The only thing that starts a reorder, so the rest of the row is
+              still free to scroll, swipe and open. */}
+          <span
+            className="grip"
+            aria-label="Reorder recording"
+            role="button"
+            tabIndex={0}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onGrip(index, e);
+            }}
+          >
+            <GripIcon />
+          </span>
+
           <span className={`memo__check${selectMode ? ' is-shown' : ''}`}>
             <SelectDot on={selected} />
           </span>

@@ -93,6 +93,8 @@ export interface Memo {
   name: string;
   /** Pinned memos sort to the top of the song's list. */
   pinned?: boolean;
+  /** Where the user dragged it to. Absent on memos made before ordering. */
+  order?: number;
   mimeType: string;
   segments: Segment[];
   createdAt: number;

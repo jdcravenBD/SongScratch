@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { VoiceMemos } from '../hooks/useVoiceMemos';
+import { useReorder } from '../hooks/useReorder';
 import { formatDuration } from '../lib/audio';
 import MemoRow from './MemoRow';
 import { PinIcon, TrashIcon } from './icons';
@@ -14,6 +15,16 @@ const LIVE_BARS = 46;
 export function VoiceList({ voice }: { voice: VoiceMemos }) {
   const { memos, recorder } = voice;
   const count = memos.length;
+
+  const commit = useCallback(
+    (from: number, to: number) => void voice.reorder(from, to),
+    [voice],
+  );
+  const prepare = useCallback(() => {
+    voice.setExpandedId(null);
+    voice.setRevealedId(null);
+  }, [voice]);
+  const { listRef, begin, dragIndex, dy, liftFor } = useReorder(commit, prepare);
 
   return (
     <>
@@ -44,11 +55,14 @@ export function VoiceList({ voice }: { voice: VoiceMemos }) {
           </p>
         </div>
       ) : (
-        <ul className="memos">
-          {memos.map((memo) => (
+        <ul className="memos" ref={listRef}>
+          {memos.map((memo, i) => (
             <MemoRow
               key={memo.id}
               memo={memo}
+              index={i}
+              lift={i === dragIndex ? dy : liftFor(i)}
+              dragging={i === dragIndex}
               expanded={voice.expandedId === memo.id}
               busy={recorder.recording}
               selectMode={voice.selectMode}
@@ -62,6 +76,7 @@ export function VoiceList({ voice }: { voice: VoiceMemos }) {
               onLongPress={voice.enterSelect}
               onToggleSelect={voice.toggleSelect}
               onReveal={voice.setRevealedId}
+              onGrip={begin}
             />
           ))}
         </ul>

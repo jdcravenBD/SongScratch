@@ -204,7 +204,7 @@ export default function SectionRow({
           {/* The only thing that starts a reorder, so the rest of the row is
               still free to scroll and to swipe. */}
           <span
-            className="sect__grip"
+            className="grip"
             aria-label="Reorder section"
             role="button"
             tabIndex={0}

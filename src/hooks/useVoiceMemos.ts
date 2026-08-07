@@ -16,6 +16,8 @@ export interface VoiceMemos {
   rename: (id: string, name: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   removeMany: (ids: string[]) => Promise<void>;
+  /** Move a memo from one position in the list to another. */
+  reorder: (from: number, to: number) => Promise<void>;
   /** `value` omitted flips each one. */
   setPinned: (ids: string[], value?: boolean) => Promise<void>;
 
@@ -31,10 +33,16 @@ export interface VoiceMemos {
   toggleSelect: (id: string) => void;
 }
 
-/** Pinned first, then in the order they were recorded. */
+/**
+ * Pinned first, then wherever the user dragged them to, then — for anything
+ * recorded before ordering existed — the order it was recorded in.
+ */
 const order = (all: Memo[]) =>
   [...all].sort(
-    (a, b) => Number(!!b.pinned) - Number(!!a.pinned) || a.createdAt - b.createdAt,
+    (a, b) =>
+      Number(!!b.pinned) - Number(!!a.pinned) ||
+      (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
+      a.createdAt - b.createdAt,
   );
 
 /**
@@ -123,6 +131,7 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
         // Named by the user, not by the clock — the row already shows when it
         // was made, so a timestamp for a name would just say it twice.
         name: nextUntitled(existingAll),
+        order: existingAll.length,
         mimeType: segment.blob.type,
         segments: [segment],
         createdAt: now,
@@ -177,6 +186,20 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
     [songId, refresh],
   );
 
+  const reorder = useCallback(
+    async (from: number, to: number) => {
+      if (from === to) return;
+      const all = order(await getMemos(songId));
+      const next = [...all];
+      const [moved] = next.splice(from, 1);
+      next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
+      // Renumber the lot: positions only mean anything relative to each other.
+      await Promise.all(next.map((m, i) => putMemo({ ...m, order: i })));
+      await refresh();
+    },
+    [songId, refresh],
+  );
+
   const enterSelect = useCallback((id?: string) => {
     setSelectMode(true);
     setRevealedId(null);
@@ -207,6 +230,7 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
     rename,
     remove,
     removeMany,
+    reorder,
     setPinned,
     expandedId,
     setExpandedId,

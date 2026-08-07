@@ -3,7 +3,6 @@ import type { MouseEvent } from 'react';
 import type { Song } from '../types';
 import { deleteSongs, getSong, putSong } from '../db/songs';
 import { extractMeta, setBlockKind, type BlockKind } from '../lib/lyrics';
-import { formatStamp } from '../lib/format';
 import { newId } from '../lib/id';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useVoiceMemos } from '../hooks/useVoiceMemos';
@@ -192,8 +191,6 @@ export default function SongEditor({ id, onBack }: Props) {
       <ScrollArea dragScroll={!editing}>
         {tab === 'lyrics' ? (
           <>
-            {/* Outside the editable document, so it can't be typed into. */}
-            <p className="stamp">{formatStamp(song.updatedAt)}</p>
             <LyricsTab
               song={song}
               editing={editing}

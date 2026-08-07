@@ -46,7 +46,7 @@
    * reading as frost and starts reading as grime — the `opacity` below is the
    * only number that matters, and small is right.
    */
-  --glass-noise: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.09'/%3E%3C/svg%3E");
+  --glass-noise: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
 
   /* --- ink --------------------------------------------------------------- */
   --text: #ffffff;
@@ -328,7 +328,13 @@ input {
 .scroll__content {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  /*
+   * One pixel past the viewport, always. A container with nothing to scroll
+   * doesn't rubber-band on iOS, so a short list felt dead against a long one;
+   * this keeps every screen tuggable. Deliberately 1px: the scrollbar only
+   * appears once there is more than that to scroll, so it stays hidden.
+   */
+  min-height: calc(100% + 1px);
 }
 
 /* ------------------------------------------------------------ edge fades --
@@ -926,14 +932,14 @@ input {
   --ebar-h: 52px;
   /* Only the top bar sits above the page now; the tabs moved to the bottom. */
   --nav-h: var(--ebar-h);
-  --dock-h: 72px;
+  --dock-h: 80px;
   animation: editor-in 0.26s var(--ease) both;
 }
 
 /* The voice tab stacks its record control above the tabs, so the bottom bar is
    taller — and ScrollArea insets the list to match, off this one number. */
 .editor.is-voice {
-  --dock-h: 196px;
+  --dock-h: 204px;
 }
 
 .editor.is-voice .edock {
@@ -943,7 +949,7 @@ input {
 
 /* Chords stacks a New Section button above the tabs. */
 .editor.is-chords {
-  --dock-h: 130px;
+  --dock-h: 138px;
 }
 
 .editor.is-chords .edock {
@@ -1059,13 +1065,21 @@ input {
     calc(var(--edge) + var(--safe-l));
 }
 
-/* Chords | Lyrics | Voice */
+/*
+ * Chords | Lyrics | Voice, held in one dim pill so they read as a single
+ * control with a selection inside it rather than three loose buttons. The
+ * track is a touch taller than the selected pill, which is what makes the
+ * selection look seated in it.
+ */
 .tabs {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .tabs__tab {
@@ -1454,6 +1468,24 @@ input {
 
 .memo {
   position: relative;
+  /* Rows step aside during a reorder; the one under the finger must not. */
+  transition: transform 0.18s var(--ease);
+}
+
+.memo.is-dragging {
+  z-index: 5;
+  transition: none;
+}
+
+.memo.is-dragging .memo__fg {
+  border-radius: 12px;
+  background: #131315;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.memo.is-dragging .memo__head::before,
+.memo.is-dragging + .memo .memo__head::before {
+  opacity: 0;
 }
 
 .memo__fg {
@@ -1467,9 +1499,10 @@ input {
 .memo__head {
   display: flex;
   align-items: center;
-  padding: 17px calc(var(--text-edge) + var(--safe-r)) 17px
-    calc(var(--text-edge) + var(--safe-l));
-  min-height: 68px;
+  gap: 12px;
+  padding: 10px calc(var(--text-edge) + var(--safe-r)) 10px
+    calc(var(--edge) + var(--safe-l));
+  min-height: 62px;
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
@@ -1896,8 +1929,9 @@ input {
 }
 
 /* Owns both axes while it is held, so the list must not scroll out from under
-   a reorder — the one place `touch-action: none` is the right answer. */
-.sect__grip {
+   a reorder — the one place `touch-action: none` is the right answer. Shared by
+   the chord sections and the voice memos. */
+.grip {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -1911,7 +1945,7 @@ input {
   -webkit-tap-highlight-color: transparent;
 }
 
-.sect__grip:active {
+.grip:active {
   cursor: grabbing;
   color: var(--text-2);
 }
@@ -2103,13 +2137,21 @@ input {
   display: none;
 }
 
+/*
+ * Dimmed by its contents, never by `opacity` on the field itself: fading the
+ * element fades its backdrop-filter with it, so the blur and the frost went
+ * pale along with the text and it stopped matching the other glass.
+ */
 .search--placeholder {
-  opacity: 0.45;
   pointer-events: none;
 }
 
+.search--placeholder .search__icon {
+  color: var(--text-3);
+}
+
 .search__ghost {
-  color: var(--text-2);
+  color: var(--text-3);
   font-size: 16px;
 }
 
@@ -2121,18 +2163,28 @@ input {
   z-index: 20;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
-  padding: 8px calc(var(--edge) + var(--safe-r)) calc(12px + var(--safe-b))
-    calc(var(--edge) + var(--safe-l));
+  /* No side padding: the field and the buttons size against the same full
+     width the neck does, so their percentages mean the same thing. */
+  padding: 8px var(--safe-r) calc(12px + var(--safe-b)) var(--safe-l);
 }
 
-/* Sat together in the middle: two answers to one question, not two ends of
-   the screen. */
+/*
+ * A shade wider than the neck above it (which is 65% of the same width), so the
+ * field reads as belonging to the fretboard rather than to the screen edges.
+ */
+.picker__dock .search {
+  width: 72%;
+  flex: 0 0 auto;
+}
+
+/* The buttons take the field's ends, so the three of them share one column. */
 .picker__actions {
+  width: 72%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  justify-content: space-between;
 }
 
 /* Anchored under the button it came from, like the editor's. */
@@ -2520,7 +2572,6 @@ input {
    * showing through than a menu can afford.
    */
   .menu__panel,
-  .fmt__bar,
   .fmt__panel {
     background-color: rgba(30, 30, 32, 0.86);
   }
