@@ -3,6 +3,7 @@ import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Memo } from '../types';
 import { allPeaks, formatDuration, totalDuration } from '../lib/audio';
 import { formatWhen } from '../lib/format';
+import { caretIndexAtX, fontOf } from '../lib/caret';
 import { usePlayer } from '../hooks/usePlayer';
 import Waveform from './Waveform';
 import {
@@ -10,7 +11,6 @@ import {
   Forward10Icon,
   GripIcon,
   PauseIcon,
-  PinIcon,
   PlayIcon,
   PlusIcon,
   SelectDot,
@@ -39,12 +39,12 @@ interface Props {
   onExpand: (id: string | null) => void;
   onDelete: (id: string) => void;
   onRename: (id: string, name: string) => void;
-  onTogglePin: (id: string) => void;
   onResume: (id: string) => void;
   onLongPress: (id: string) => void;
   onToggleSelect: (id: string) => void;
   onReveal: (id: string | null) => void;
-  onGrip: (index: number, e: ReactPointerEvent) => void;
+  /** Starts a reorder. Given where the press began, not where it is now. */
+  onGrip: (index: number, startY: number) => void;
 }
 
 /**
@@ -70,7 +70,6 @@ export default function MemoRow({
   onExpand,
   onDelete,
   onRename,
-  onTogglePin,
   onResume,
   onLongPress,
   onToggleSelect,
@@ -90,8 +89,16 @@ export default function MemoRow({
   const longTimer = useRef(0);
   const longFired = useRef(false);
   const moved = useRef(false);
+  /** A press on the grip: a tap toggles the row, a drag reorders it. */
+  const gripPress = useRef({ y: 0, id: -1, armed: false });
+  /** Where in the name the finger landed, so the caret can start there. */
+  const caretAt = useRef<number | null>(null);
 
-  const [open, setOpen] = useState<'none' | 'pin' | 'delete'>('none');
+  const [open, setOpen] = useState(false);
+  /** A swipe just happened; swallow the click it would otherwise fire. */
+  const swiped = useRef(false);
+  /** The press began on the header, so a tap on it means open/close. */
+  const fromHead = useRef(false);
   const [renaming, setRenaming] = useState(false);
 
   // The player only exists for the open row; every memo holding object URLs
@@ -108,27 +115,32 @@ export default function MemoRow({
     const li = host.current;
     if (!li) return;
     const pill = Math.max(0, Math.abs(x) - PILL_GAP);
-    li.dataset.swipe = x > 0 ? 'pin' : x < 0 ? 'delete' : 'none';
+    li.dataset.swipe = x < 0 ? 'delete' : 'none';
     li.style.setProperty('--reveal', `${pill}px`);
     li.style.setProperty('--reveal-ms', animate ? '0.32s' : '0s');
     li.style.setProperty('--icon-op', pill >= ICON_AT ? '1' : '0');
   };
 
   const close = (notify = true) => {
-    setOpen('none');
+    setOpen(false);
     slide(0, true);
     if (notify) onReveal(null);
   };
 
   useEffect(() => {
-    if ((forceClosed || selectMode) && open !== 'none') {
-      setOpen('none');
+    if ((forceClosed || selectMode) && open) {
+      setOpen(false);
       slide(0, true);
     }
   }, [forceClosed, selectMode, open]);
 
+  // Start where the finger landed rather than selecting the lot.
   useEffect(() => {
-    if (renaming) nameInput.current?.select();
+    const input = nameInput.current;
+    if (!renaming || !input) return;
+    const at = caretAt.current ?? input.value.length;
+    caretAt.current = null;
+    input.setSelectionRange(at, at);
   }, [renaming]);
 
   const clearLong = () => {
@@ -143,12 +155,13 @@ export default function MemoRow({
     if (renaming) return;
     pid.current = e.pointerId;
     start.current = { x: e.clientX, y: e.clientY };
-    base.current = open === 'delete' ? -REVEAL : open === 'pin' ? REVEAL : 0;
+    base.current = open ? -REVEAL : 0;
     axis.current = 'none';
     moved.current = false;
     longFired.current = false;
+    fromHead.current = !!(e.target as HTMLElement).closest?.('.memo__head');
 
-    if (!selectMode) {
+    if (!selectMode && fromHead.current) {
       longTimer.current = window.setTimeout(() => {
         if (axis.current !== 'x' && !moved.current) {
           longFired.current = true;
@@ -185,13 +198,10 @@ export default function MemoRow({
 
     if (axis.current === 'x') {
       e.preventDefault();
-      const x = base.current + dx;
+      const x = Math.min(0, base.current + dx); // opens leftward only
       rawX.current = x;
       const limit = REVEAL + 60;
-      slide(
-        Math.abs(x) > limit ? Math.sign(x) * (limit + (Math.abs(x) - limit) * 0.25) : x,
-        false,
-      );
+      slide(Math.abs(x) > limit ? -(limit + (Math.abs(x) - limit) * 0.25) : x, false);
     }
   };
 
@@ -199,13 +209,17 @@ export default function MemoRow({
     if (pid.current !== e.pointerId) return;
     pid.current = null;
     clearLong();
-    const swiped = axis.current === 'x';
+    const didSwipe = axis.current === 'x';
     axis.current = 'none';
+    // A drag that ends on a button must not also press it.
+    if (didSwipe) swiped.current = true;
 
-    if (!swiped) {
+    if (!didSwipe) {
       if (longFired.current || moved.current || renaming) return;
+      // Presses inside the open body belong to the controls there.
+      if (!fromHead.current) return;
       if (selectMode) onToggleSelect(memo.id);
-      else if (open !== 'none') close();
+      else if (open) close();
       else onExpand(expanded ? null : memo.id);
       return;
     }
@@ -216,16 +230,9 @@ export default function MemoRow({
     if (x < -width * COMMIT) {
       slide(-width, true);
       window.setTimeout(() => onDelete(memo.id), 200);
-    } else if (x > width * COMMIT) {
-      onTogglePin(memo.id);
-      close();
     } else if (x < -REVEAL * 0.55) {
-      setOpen('delete');
+      setOpen(true);
       slide(-REVEAL, true);
-      onReveal(memo.id);
-    } else if (x > REVEAL * 0.55) {
-      setOpen('pin');
-      slide(REVEAL, true);
       onReveal(memo.id);
     } else {
       close();
@@ -250,37 +257,34 @@ export default function MemoRow({
       style={lift ? { transform: `translate3d(0,${lift}px,0)` } : undefined}
     >
       <button
-        className="memo__action memo__action--pin"
-        type="button"
-        tabIndex={open === 'pin' ? 0 : -1}
-        aria-label={memo.pinned ? `Unpin ${memo.name}` : `Pin ${memo.name}`}
-        onClick={() => {
-          onTogglePin(memo.id);
-          close();
-        }}
-      >
-        <PinIcon />
-      </button>
-
-      <button
         className="memo__action memo__action--delete"
         type="button"
-        tabIndex={open === 'delete' ? 0 : -1}
+        tabIndex={open ? 0 : -1}
         aria-label={`Delete ${memo.name}`}
         onClick={() => onDelete(memo.id)}
       >
         <TrashIcon />
       </button>
 
-      <div className="memo__fg" ref={fg}>
-        <div
-          className="memo__head"
-          ref={head}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
+      {/* The gesture lives on the whole row, not just its header, so an open
+          memo can be swiped away from anywhere in it — including from on top of
+          a transport button. The waveform keeps its own pointers, since a drag
+          across it means scrubbing. */}
+      <div
+        className="memo__fg"
+        ref={fg}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onClickCapture={(e) => {
+          if (!swiped.current) return;
+          swiped.current = false;
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+      >
+        <div className="memo__head" ref={head}>
           {/* The only thing that starts a reorder, so the rest of the row is
               still free to scroll, swipe and open. */}
           <span
@@ -290,7 +294,22 @@ export default function MemoRow({
             tabIndex={0}
             onPointerDown={(e) => {
               e.stopPropagation();
-              onGrip(index, e);
+              gripPress.current = { y: e.clientY, id: e.pointerId, armed: true };
+            }}
+            onPointerMove={(e) => {
+              const press = gripPress.current;
+              if (!press.armed || press.id !== e.pointerId) return;
+              // Only a real drag reorders; a still finger is still a tap.
+              if (Math.abs(e.clientY - press.y) > 6) {
+                press.armed = false;
+                onGrip(index, press.y);
+              }
+            }}
+            onPointerUp={(e) => {
+              const press = gripPress.current;
+              if (!press.armed || press.id !== e.pointerId) return;
+              press.armed = false;
+              onExpand(expanded ? null : memo.id);
             }}
           >
             <GripIcon />
@@ -329,10 +348,12 @@ export default function MemoRow({
                 onPointerUp={(e) => {
                   if (!expanded || selectMode) return;
                   e.stopPropagation();
+                  const el = e.currentTarget;
+                  const x = e.clientX - el.getBoundingClientRect().left;
+                  caretAt.current = caretIndexAtX(memo.name, fontOf(el), x);
                   setRenaming(true);
                 }}
               >
-                {memo.pinned && <PinIcon size={12} className="memo__pin" />}
                 {memo.name}
               </span>
             )}
@@ -358,13 +379,12 @@ export default function MemoRow({
 
             <div className="transport">
               <button
-                className="transport__btn transport__btn--edge"
+                className="transport__btn transport__btn--edge transport__btn--danger"
                 type="button"
-                aria-label={memo.pinned ? 'Unpin recording' : 'Pin recording'}
-                aria-pressed={!!memo.pinned}
-                onClick={() => onTogglePin(memo.id)}
+                aria-label="Delete recording"
+                onClick={() => onDelete(memo.id)}
               >
-                <PinIcon size={22} />
+                <TrashIcon size={22} />
               </button>
 
               <div className="transport__center">

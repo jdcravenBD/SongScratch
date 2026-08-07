@@ -75,6 +75,12 @@
   --nav-h: 50px;
   --dock-h: 62px;
   --pill: 999px;
+  /*
+   * How far the bottom bars sit off the edge. The safe inset alone already
+   * clears the home indicator, so adding to it on top left a band of dead
+   * black under every dock; this pulls them back down into it a little.
+   */
+  --dock-floor: max(6px, calc(var(--safe-b) - 12px));
   /* One height for every glass control — chips, icon buttons, the search
      field, the tabs and the format bar all sit on this, so nothing reads as
      slightly the wrong size beside its neighbour. */
@@ -464,7 +470,8 @@ input {
 /* --------------------------------------------------------------------- hero -- */
 
 .hero {
-  padding: 6px calc(var(--text-edge) + var(--safe-r)) 12px calc(var(--text-edge) + var(--safe-l));
+  padding: 20px calc(var(--text-edge) + var(--safe-r)) 12px
+    calc(var(--text-edge) + var(--safe-l));
 }
 
 .hero__title {
@@ -745,7 +752,7 @@ input {
   right: 0;
   bottom: 0;
   z-index: 20;
-  padding: 10px calc(var(--edge) + var(--safe-r)) calc(10px + var(--safe-b))
+  padding: 10px calc(var(--edge) + var(--safe-r)) var(--dock-floor)
     calc(var(--edge) + var(--safe-l));
 }
 
@@ -1061,7 +1068,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px calc(var(--edge) + var(--safe-r)) calc(10px + var(--safe-b))
+  padding: 10px calc(var(--edge) + var(--safe-r)) var(--dock-floor)
     calc(var(--edge) + var(--safe-l));
 }
 
@@ -1113,7 +1120,8 @@ input {
 /* ------------------------------------------------------------ the song sheet -- */
 
 .ly {
-  padding: 6px calc(var(--text-edge) + var(--safe-r)) 28px calc(var(--text-edge) + var(--safe-l));
+  padding: 20px calc(var(--text-edge) + var(--safe-r)) 28px
+    calc(var(--text-edge) + var(--safe-l));
   outline: none;
   cursor: text;
   user-select: text;
@@ -1477,12 +1485,6 @@ input {
   transition: none;
 }
 
-.memo.is-dragging .memo__fg {
-  border-radius: 12px;
-  background: #131315;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-}
-
 .memo.is-dragging .memo__head::before,
 .memo.is-dragging + .memo .memo__head::before {
   opacity: 0;
@@ -1596,7 +1598,7 @@ input {
 
 /* Opens downward out of its own row. */
 .memo__body {
-  padding: 0 calc(var(--text-edge) + var(--safe-r)) 18px
+  padding: 0 calc(var(--text-edge) + var(--safe-r)) 8px
     calc(var(--text-edge) + var(--safe-l));
   animation: memo-open 0.22s var(--ease) both;
 }
@@ -1638,12 +1640,6 @@ input {
   background: var(--danger);
 }
 
-.memo__action--pin {
-  left: 8px;
-  background: #3a3a3c;
-}
-
-.memo[data-swipe='pin'] .memo__action--pin,
 .memo[data-swipe='delete'] .memo__action--delete {
   width: var(--reveal, 0px);
 }
@@ -1720,6 +1716,15 @@ input {
   color: var(--text);
 }
 
+.transport__btn--danger {
+  color: var(--danger);
+}
+
+.transport__btn--danger:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgba(255, 69, 58, 0.14);
+}
+
 .transport__btn:disabled {
   color: var(--text-3);
   cursor: default;
@@ -1748,8 +1753,8 @@ input {
 }
 
 .transport__btn--play {
-  width: 60px;
-  height: 60px;
+  width: 72px;
+  height: 72px;
 }
 
 /* Something went wrong with the microphone, said without hiding the list. */
@@ -1895,12 +1900,6 @@ input {
   will-change: transform;
 }
 
-.sect.is-dragging .sect__fg {
-  border-radius: 12px;
-  background: #131315;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
-}
-
 .sect__head {
   display: flex;
   align-items: center;
@@ -2036,7 +2035,7 @@ input {
 }
 
 .diagram {
-  width: 68px;
+  width: 74px;
   height: 92px;
   color: var(--text);
 }
@@ -2056,7 +2055,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 68px;
+  width: 74px;
   height: 92px;
   border-radius: 12px;
   border: 1.5px dashed var(--stroke);
@@ -2167,7 +2166,7 @@ input {
   gap: 10px;
   /* No side padding: the field and the buttons size against the same full
      width the neck does, so their percentages mean the same thing. */
-  padding: 8px var(--safe-r) calc(12px + var(--safe-b)) var(--safe-l);
+  padding: 8px var(--safe-r) var(--dock-floor) var(--safe-l);
 }
 
 /*

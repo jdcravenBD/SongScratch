@@ -91,8 +91,6 @@ export interface Memo {
   songId: string;
   /** "Untitled" until the user names it. */
   name: string;
-  /** Pinned memos sort to the top of the song's list. */
-  pinned?: boolean;
   /** Where the user dragged it to. Absent on memos made before ordering. */
   order?: number;
   mimeType: string;

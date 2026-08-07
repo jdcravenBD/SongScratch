@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
 
 interface Drag {
   index: number;
@@ -11,8 +10,12 @@ interface Drag {
 export interface Reorder {
   /** Put this on the <ul> whose children are the rows. */
   listRef: React.RefObject<HTMLUListElement | null>;
-  /** Call from the grip's pointerdown. */
-  begin: (index: number, e: ReactPointerEvent) => void;
+  /**
+   * Start a drag. Called by the row only once the finger has actually moved,
+   * so a tap on the grip stays a tap; `startY` is where the press began, not
+   * where it had reached by then.
+   */
+  begin: (index: number, startY: number) => void;
   /** Index being dragged, or -1. */
   dragIndex: number;
   /** How far the dragged row has travelled. */
@@ -44,8 +47,7 @@ export function useReorder(
   const [dy, setDy] = useState(0);
 
   const begin = useCallback(
-    (index: number, e: ReactPointerEvent) => {
-      const startY = e.clientY;
+    (index: number, startY: number) => {
       prepare?.();
       // Measured next frame, so anything the prepare step closed has actually
       // gone before the rows are sized.

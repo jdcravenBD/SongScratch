@@ -18,8 +18,6 @@ export interface VoiceMemos {
   removeMany: (ids: string[]) => Promise<void>;
   /** Move a memo from one position in the list to another. */
   reorder: (from: number, to: number) => Promise<void>;
-  /** `value` omitted flips each one. */
-  setPinned: (ids: string[], value?: boolean) => Promise<void>;
 
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
@@ -34,13 +32,13 @@ export interface VoiceMemos {
 }
 
 /**
- * Pinned first, then wherever the user dragged them to, then — for anything
- * recorded before ordering existed — the order it was recorded in.
+ * Wherever the user dragged them to, then — for anything recorded before
+ * ordering existed — the order it was recorded in. Nothing jumps the queue:
+ * arranging them by hand is the only thing that decides position.
  */
 const order = (all: Memo[]) =>
   [...all].sort(
     (a, b) =>
-      Number(!!b.pinned) - Number(!!a.pinned) ||
       (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER) ||
       a.createdAt - b.createdAt,
   );
@@ -174,18 +172,6 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
 
   const remove = useCallback((id: string) => removeMany([id]), [removeMany]);
 
-  const setPinned = useCallback(
-    async (ids: string[], value?: boolean) => {
-      const targets = (await getMemos(songId)).filter((m) => ids.includes(m.id));
-      await Promise.all(
-        targets.map((m) => putMemo({ ...m, pinned: value ?? !m.pinned })),
-      );
-      setRevealedId(null);
-      await refresh();
-    },
-    [songId, refresh],
-  );
-
   const reorder = useCallback(
     async (from: number, to: number) => {
       if (from === to) return;
@@ -231,7 +217,6 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
     remove,
     removeMany,
     reorder,
-    setPinned,
     expandedId,
     setExpandedId,
     revealedId,

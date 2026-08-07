@@ -3,7 +3,7 @@ import type { VoiceMemos } from '../hooks/useVoiceMemos';
 import { useReorder } from '../hooks/useReorder';
 import { formatDuration } from '../lib/audio';
 import MemoRow from './MemoRow';
-import { PinIcon, TrashIcon } from './icons';
+import { TrashIcon } from './icons';
 
 /** Bars in the live meter — a moving window of the last few seconds. */
 const LIVE_BARS = 46;
@@ -71,7 +71,6 @@ export function VoiceList({ voice }: { voice: VoiceMemos }) {
               onExpand={voice.setExpandedId}
               onDelete={(id) => void voice.remove(id)}
               onRename={(id, name) => void voice.rename(id, name)}
-              onTogglePin={(id) => void voice.setPinned([id])}
               onResume={voice.startResume}
               onLongPress={voice.enterSelect}
               onToggleSelect={voice.toggleSelect}
@@ -97,22 +96,9 @@ export function VoiceDock({ voice }: { voice: VoiceMemos }) {
   if (voice.selectMode) {
     const ids = [...voice.selected];
     const n = ids.length;
-    const addPins = !voice.memos.filter((m) => voice.selected.has(m.id)).every((m) => m.pinned);
     return (
       <div className="rec rec--select">
         <div className="toolbar">
-          <button
-            className="tool"
-            type="button"
-            disabled={!n}
-            onClick={async () => {
-              await voice.setPinned(ids, addPins);
-              voice.exitSelect();
-            }}
-          >
-            <PinIcon />
-            <span>{addPins ? 'Pin' : 'Unpin'}</span>
-          </button>
           <button
             className="tool tool--danger"
             type="button"

@@ -47,6 +47,9 @@ export default function Waveform({ peaks, progress, onScrub, onScrubEnd }: Props
    */
   const onPointerDown = (e: ReactPointerEvent) => {
     if (!onScrub) return;
+    // The row swipes from anywhere in an open memo — except here, where a
+    // sideways drag has to mean scrubbing.
+    e.stopPropagation();
     start.current = { x: e.clientX, y: e.clientY };
     pid.current = e.pointerId;
     moved.current = false;

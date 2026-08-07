@@ -5,9 +5,15 @@ const FRETS = 4;
 const STRINGS = 6;
 
 /* Geometry, in the SVG's own units. */
-const W = 70;
-const PAD_L = 17; // room for the fret number down the side
-const PAD_R = 7;
+const W = 74;
+/*
+ * Equal on both sides. The fret number lives in the left margin, but the margin
+ * is matched on the right so the grid stays centred in the box — otherwise the
+ * name underneath, which centres on the box, sits off to one side of the
+ * strings it belongs to.
+ */
+const PAD_L = 15;
+const PAD_R = 15;
 const TOP = 16; // room above the nut for the open/muted marks
 const BOT = 6;
 const H = 92;

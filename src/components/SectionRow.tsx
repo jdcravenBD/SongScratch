@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { ChordSection } from '../types';
+import { caretIndexAtX, fontOf } from '../lib/caret';
 import ChordDiagram from './ChordDiagram';
 import { GripIcon, PlusIcon, TrashIcon } from './icons';
 
@@ -23,7 +24,8 @@ interface Props {
   onDelete: (id: string) => void;
   onReveal: (id: string | null) => void;
   onAddChord: (sectionId: string) => void;
-  onGrip: (index: number, e: ReactPointerEvent) => void;
+  /** Starts a reorder. Given where the press began, not where it is now. */
+  onGrip: (index: number, startY: number) => void;
 }
 
 /**
@@ -59,6 +61,10 @@ export default function SectionRow({
   const axis = useRef<'none' | 'x' | 'y'>('none');
   const pid = useRef<number | null>(null);
   const moved = useRef(false);
+  /** A press on the grip: a tap toggles the row, a drag reorders it. */
+  const gripPress = useRef({ y: 0, id: -1, armed: false });
+  /** Where in the name the finger landed, so the caret can start there. */
+  const caretAt = useRef<number | null>(null);
 
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -90,8 +96,13 @@ export default function SectionRow({
     }
   }, [forceClosed, open]);
 
+  // Start where the finger landed rather than selecting the lot.
   useEffect(() => {
-    if (renaming) nameInput.current?.select();
+    const input = nameInput.current;
+    if (!renaming || !input) return;
+    const at = caretAt.current ?? input.value.length;
+    caretAt.current = null;
+    input.setSelectionRange(at, at);
   }, [renaming]);
 
   const onPointerDown = (e: ReactPointerEvent) => {
@@ -210,7 +221,22 @@ export default function SectionRow({
             tabIndex={0}
             onPointerDown={(e) => {
               e.stopPropagation();
-              onGrip(index, e);
+              gripPress.current = { y: e.clientY, id: e.pointerId, armed: true };
+            }}
+            onPointerMove={(e) => {
+              const press = gripPress.current;
+              if (!press.armed || press.id !== e.pointerId) return;
+              // Only a real drag reorders; a still finger is still a tap.
+              if (Math.abs(e.clientY - press.y) > 6) {
+                press.armed = false;
+                onGrip(index, press.y);
+              }
+            }}
+            onPointerUp={(e) => {
+              const press = gripPress.current;
+              if (!press.armed || press.id !== e.pointerId) return;
+              press.armed = false;
+              onExpand(expanded ? null : section.id);
             }}
           >
             <GripIcon />
@@ -239,6 +265,9 @@ export default function SectionRow({
                 onPointerUp={(e) => {
                   if (!expanded) return;
                   e.stopPropagation();
+                  const el = e.currentTarget;
+                  const x = e.clientX - el.getBoundingClientRect().left;
+                  caretAt.current = caretIndexAtX(section.name, fontOf(el), x);
                   setRenaming(true);
                 }}
               >
