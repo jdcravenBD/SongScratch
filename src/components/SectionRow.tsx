@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { ChordSection } from '../types';
 import ChordDiagram from './ChordDiagram';
-import { BackIcon, GripIcon, PlusIcon, TrashIcon } from './icons';
+import { GripIcon, PlusIcon, TrashIcon } from './icons';
 
 const REVEAL = 78;
 const SLOP = 8;
@@ -22,6 +22,7 @@ interface Props {
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onReveal: (id: string | null) => void;
+  onAddChord: (sectionId: string) => void;
   onGrip: (index: number, e: ReactPointerEvent) => void;
 }
 
@@ -44,6 +45,7 @@ export default function SectionRow({
   onRename,
   onDelete,
   onReveal,
+  onAddChord,
   onGrip,
 }: Props) {
   const host = useRef<HTMLLIElement>(null);
@@ -60,7 +62,6 @@ export default function SectionRow({
 
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const [adding, setAdding] = useState(false);
 
   const slide = (x: number, animate: boolean) => {
     const el = fg.current;
@@ -92,11 +93,6 @@ export default function SectionRow({
   useEffect(() => {
     if (renaming) nameInput.current?.select();
   }, [renaming]);
-
-  // Leaving the section closes whatever sub-view was open inside it.
-  useEffect(() => {
-    if (!expanded) setAdding(false);
-  }, [expanded]);
 
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -257,41 +253,25 @@ export default function SectionRow({
 
         {expanded && (
           <div className="sect__body">
-            {adding ? (
-              <div className="soon">
-                <button
-                  className="iconbtn soon__back"
-                  type="button"
-                  aria-label="Back"
-                  onClick={() => setAdding(false)}
-                >
-                  <BackIcon size={20} />
-                </button>
-                <p className="soon__text">Coming soon</p>
-              </div>
-            ) : (
-              <>
-                {count > 0 && (
-                  <div className="chords">
-                    {section.chords.map((chord) => (
-                      <div className="chord" key={chord.id}>
-                        <ChordDiagram shape={chord.shape} />
-                        <span className="chord__name">{chord.name}</span>
-                      </div>
-                    ))}
+            {count > 0 && (
+              <div className="chords">
+                {section.chords.map((chord) => (
+                  <div className="chord" key={chord.id}>
+                    <ChordDiagram shape={chord.shape} />
+                    <span className="chord__name">{chord.name}</span>
                   </div>
-                )}
-
-                <button
-                  className="chip chip--add"
-                  type="button"
-                  onClick={() => setAdding(true)}
-                >
-                  <PlusIcon size={17} />
-                  <span>Add chord</span>
-                </button>
-              </>
+                ))}
+              </div>
             )}
+
+            <button
+              className="chip chip--add"
+              type="button"
+              onClick={() => onAddChord(section.id)}
+            >
+              <PlusIcon size={17} />
+              <span>Add chord</span>
+            </button>
           </div>
         )}
       </div>

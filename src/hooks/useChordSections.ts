@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ChordSection, Song } from '../types';
+import type { Chord, ChordSection, Song } from '../types';
 import { getSong, putSong } from '../db/songs';
 import { newId } from '../lib/id';
 
@@ -10,6 +10,11 @@ export interface ChordSections {
   remove: (id: string) => Promise<void>;
   /** Move a section from one position in the stack to another. */
   reorder: (from: number, to: number) => Promise<void>;
+  /** The section a chord is being picked for, or null when the picker is shut. */
+  addingTo: string | null;
+  startAdd: (sectionId: string) => void;
+  cancelAdd: () => void;
+  addChord: (sectionId: string, chord: Chord) => Promise<void>;
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
   revealedId: string | null;
@@ -29,6 +34,7 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
   const [sections, setSections] = useState<ChordSection[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [revealedId, setRevealedId] = useState<string | null>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const song = await getSong(songId);
@@ -90,12 +96,28 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit],
   );
 
+  const addChord = useCallback(
+    async (sectionId: string, chord: Chord) => {
+      setAddingTo(null);
+      await commit((current) =>
+        current.map((s) =>
+          s.id === sectionId ? { ...s, chords: [...s.chords, chord] } : s,
+        ),
+      );
+    },
+    [commit],
+  );
+
   return {
     sections,
     add,
     rename,
     remove,
     reorder,
+    addingTo,
+    startAdd: setAddingTo,
+    cancelAdd: () => setAddingTo(null),
+    addChord,
     expandedId,
     setExpandedId,
     revealedId,

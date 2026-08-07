@@ -1997,18 +1997,207 @@ input {
   padding: 11px 22px;
 }
 
-/* The placeholder behind "Add chord" until the picker exists. */
-.soon {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0 4px;
+/* ============================================================ chord picker ==
+ * Takes the whole screen: the neck needs the height, and search and the note
+ * wheel are still to join it here.
+ */
+
+.picker {
+  --nav-h: 64px;
+  --dock-h: 74px;
+  z-index: 50;
+  background: var(--bg);
+  animation: editor-in 0.24s var(--ease) both;
 }
 
-.soon__text {
-  margin: 0;
-  font-size: var(--fs-body);
+.picker__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--safe-t) + var(--nav-h));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  padding: var(--safe-t) calc(var(--edge) + var(--safe-r)) 0
+    calc(var(--edge) + var(--safe-l));
+}
+
+/* Reserved, not working yet — deliberately inert rather than a field that
+   takes a tap and does nothing. */
+.search--placeholder {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.search__ghost {
   color: var(--text-2);
+  font-size: 16px;
+}
+
+.picker__actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px calc(var(--edge) + var(--safe-r)) calc(12px + var(--safe-b))
+    calc(var(--edge) + var(--safe-l));
+}
+
+/* What the shape is called, sat between the two decisions about it. */
+.picker__name {
+  flex: 1 1 auto;
+  margin: 0;
+  text-align: center;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A shape with no name of its own, listed by its notes. */
+.picker__name.is-unnamed {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+/* -------------------------------------------------------------- fretboard -- */
+
+.fb {
+  --gutter: 26px;
+  /* Sized so roughly eight frets are in view on a handset once the real
+     safe-area insets are taken out — and a generous tap target with it. */
+  --fret-h: 76px;
+  padding: 0 calc(var(--edge) + var(--safe-r)) 8px calc(var(--edge) + var(--safe-l));
+}
+
+.fb__head,
+.fb__row {
+  display: grid;
+  grid-template-columns: var(--gutter) repeat(6, 1fr);
+  align-items: center;
+}
+
+.fb__head {
+  height: 34px;
+}
+
+.fb__row {
+  position: relative;
+  height: var(--fret-h);
+}
+
+/* Fret number down the side. */
+.fb__gutter {
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Open / muted, and the tap target that switches them. */
+.fb__open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  font-size: 15px;
+  color: var(--text-2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fb__open.is-muted {
+  color: var(--text);
+}
+
+.fb__nut {
+  height: 5px;
+  margin: 0 0 0 var(--gutter);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.fb__neck {
+  position: relative;
+}
+
+/* Each cell is both a slice of string and the target that stops it. */
+.fb__cell {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The fret wire under each row. */
+.fb__row::after {
+  content: '';
+  position: absolute;
+  left: var(--gutter);
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.fb__string {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+/* A muted string is still there, just plainly not sounding. */
+.fb__cell.is-muted .fb__string {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fb__dot {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--pill);
+  background: var(--text);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  animation: dot-in 0.14s var(--ease) both;
+}
+
+@keyframes dot-in {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Position markers, sat behind the strings. */
+.fb__inlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: var(--pill);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fb__inlay--mid {
+  left: 100%;
 }
 
 /* ------------------------------------------------------- last-edited stamp -- */

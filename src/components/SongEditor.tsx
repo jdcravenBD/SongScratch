@@ -14,6 +14,7 @@ import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
 import { VoiceDock, VoiceList } from './VoiceTab';
 import { ChordsDock, ChordsList } from './ChordsTab';
+import ChordPicker from './ChordPicker';
 import {
   BackIcon,
   DuplicateIcon,
@@ -142,6 +143,7 @@ export default function SongEditor({ id, onBack }: Props) {
   if (!song) return <div className="screen" />;
 
   return (
+    <>
     <div
       className={`screen editor${editing ? ' is-editing' : ''}${
         tab === 'voice' ? ' is-voice' : ''
@@ -304,5 +306,15 @@ export default function SongEditor({ id, onBack }: Props) {
         </div>
       )}
     </div>
+
+    {/* Picking a chord takes the whole screen — the fretboard needs the room,
+        and search and the note wheel are still to join it there. */}
+    {chords.addingTo && (
+      <ChordPicker
+        onCancel={chords.cancelAdd}
+        onConfirm={(chord) => void chords.addChord(chords.addingTo!, chord)}
+      />
+    )}
+    </>
   );
 }

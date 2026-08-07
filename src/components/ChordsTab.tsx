@@ -145,6 +145,7 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
               onRename={(id, name) => void chords.rename(id, name)}
               onDelete={(id) => void chords.remove(id)}
               onReveal={chords.setRevealedId}
+              onAddChord={chords.startAdd}
               onGrip={begin}
             />
           ))}
