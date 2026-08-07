@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { ChordSection } from '../types';
 import { caretIndexAtX, fontOf } from '../lib/caret';
+import { useSwipeGuard } from '../hooks/useSwipeGuard';
 import ChordDiagram from './ChordDiagram';
 import { GripIcon, PlusIcon, TrashIcon } from './icons';
 
@@ -65,6 +66,9 @@ export default function SectionRow({
   const gripPress = useRef({ y: 0, id: -1, armed: false });
   /** Where in the name the finger landed, so the caret can start there. */
   const caretAt = useRef<number | null>(null);
+
+  // While a sideways swipe owns the gesture, the list must not scroll.
+  useSwipeGuard(head, () => axis.current === 'x');
 
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);

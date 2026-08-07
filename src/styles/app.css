@@ -2192,6 +2192,25 @@ input {
   min-width: 200px;
 }
 
+/* Chords found by name, laid out as the cards they will become. */
+.results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 18px 10px;
+  padding: 14px calc(var(--edge) + var(--safe-r)) 8px calc(var(--edge) + var(--safe-l));
+}
+
+.results .chord {
+  align-items: center;
+  border-radius: 12px;
+  padding: 6px 0;
+  transition: background 0.15s ease;
+}
+
+.results .chord:hover {
+  background: var(--fill);
+}
+
 /* -------------------------------------------------------------- fretboard -- */
 
 .fb {
@@ -2216,21 +2235,37 @@ input {
   align-items: center;
 }
 
-.fb__labels {
-  height: 20px;
+.fb__head {
+  height: 48px;
 }
 
-/* Which string is which, above the open/muted marks. */
+/* One target per string: the letter and the open/muted mark together. */
+.fb__open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  height: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .fb__label {
-  text-align: center;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-3);
   letter-spacing: 0.02em;
 }
 
-.fb__head {
-  height: 28px;
+.fb__mark {
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text-2);
+}
+
+.fb__open.is-muted .fb__mark,
+.fb__open.is-muted .fb__label {
+  color: var(--text);
 }
 
 /* Without this the grid collapses to nothing: the cells size from the row, and
@@ -2281,21 +2316,6 @@ input {
   z-index: 4;
   padding-top: 2px;
   background: var(--bg);
-}
-
-/* Open / muted, and the tap target that switches them. */
-.fb__open {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
-  font-size: 15px;
-  color: var(--text-2);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.fb__open.is-muted {
-  color: var(--text);
 }
 
 .fb__nut {

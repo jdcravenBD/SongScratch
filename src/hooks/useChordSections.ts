@@ -10,6 +10,8 @@ export interface ChordSections {
   remove: (id: string) => Promise<void>;
   /** Move a section from one position in the stack to another. */
   reorder: (from: number, to: number) => Promise<void>;
+  /** Empties the tab — offered from the editor's menu. */
+  clearAll: () => Promise<void>;
   /** The section a chord is being picked for, or null when the picker is shut. */
   addingTo: string | null;
   startAdd: (sectionId: string) => void;
@@ -84,6 +86,12 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit],
   );
 
+  const clearAll = useCallback(async () => {
+    setExpandedId(null);
+    setRevealedId(null);
+    await commit(() => []);
+  }, [commit]);
+
   const reorder = useCallback(
     (from: number, to: number) =>
       commit((current) => {
@@ -114,6 +122,7 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     rename,
     remove,
     reorder,
+    clearAll,
     addingTo,
     startAdd: setAddingTo,
     cancelAdd: () => setAddingTo(null),

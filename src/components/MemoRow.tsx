@@ -4,6 +4,7 @@ import type { Memo } from '../types';
 import { allPeaks, formatDuration, totalDuration } from '../lib/audio';
 import { formatWhen } from '../lib/format';
 import { caretIndexAtX, fontOf } from '../lib/caret';
+import { useSwipeGuard } from '../hooks/useSwipeGuard';
 import { usePlayer } from '../hooks/usePlayer';
 import Waveform from './Waveform';
 import {
@@ -51,11 +52,11 @@ interface Props {
  * One recording: its name, when it was made and how long it runs, opening to a
  * waveform you can scrub and a transport.
  *
- * Only the header takes the swipe, and the pointer is captured on that same
- * element — capturing on the wrapper instead retargets every later event to the
- * wrapper, so the header's own handlers stop firing and the row sticks halfway
- * open. Same gesture vocabulary as the song list: right to pin, left to delete,
- * hold to start selecting.
+ * The swipe lives on the whole row so an open memo can be thrown away from
+ * anywhere in it, and the pointer is captured on that same element — capture
+ * retargets every later event, so capturing anywhere else would stop these
+ * handlers firing and leave the row stuck halfway open. Taps only open and
+ * close from the header, leaving the controls in the body to themselves.
  */
 export default function MemoRow({
   memo,
@@ -93,6 +94,9 @@ export default function MemoRow({
   const gripPress = useRef({ y: 0, id: -1, armed: false });
   /** Where in the name the finger landed, so the caret can start there. */
   const caretAt = useRef<number | null>(null);
+
+  // While a sideways swipe owns the gesture, the list must not scroll.
+  useSwipeGuard(fg, () => axis.current === 'x');
 
   const [open, setOpen] = useState(false);
   /** A swipe just happened; swallow the click it would otherwise fire. */
@@ -185,7 +189,7 @@ export default function MemoRow({
           try {
             // Captured on the element that owns these handlers, or they stop
             // firing the moment capture moves the target elsewhere.
-            head.current?.setPointerCapture(e.pointerId);
+            fg.current?.setPointerCapture(e.pointerId);
           } catch {
             /* pointer already gone */
           }

@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Chord, ChordShape } from '../types';
 import { detectChord } from '../lib/chordName';
+import { searchChords } from '../lib/chordLibrary';
 import { newId } from '../lib/id';
 import ScrollArea from './ScrollArea';
 import Fretboard from './Fretboard';
-import { BackIcon, EllipsisIcon, SearchIcon } from './icons';
+import ChordDiagram from './ChordDiagram';
+import { BackIcon, CloseIcon, EllipsisIcon, SearchIcon } from './icons';
 
 /** Everything open, nothing held. */
 const EMPTY: ChordShape = { frets: [0, 0, 0, 0, 0, 0], baseFret: 1 };
@@ -16,18 +18,23 @@ interface Props {
 }
 
 /**
- * Where a chord gets chosen — by finding it on the neck, or by searching for it
- * once search lands in the field above the buttons.
+ * Where a chord gets chosen — either by finding it on the neck, or by naming
+ * it and picking from what comes back.
  *
- * The name lives in the title bar rather than down by the actions: it is what
- * the whole screen is about, and it belongs where a screen says what it is.
+ * Search doesn't confirm anything by itself: choosing a result loads it onto
+ * the fretboard, so every chord leaves by the same door and can be looked at,
+ * altered, or played against before it is kept.
  */
 export default function ChordPicker({ onCancel, onConfirm }: Props) {
   const [shape, setShape] = useState<ChordShape>(EMPTY);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const field = useRef<HTMLInputElement>(null);
 
   const detected = useMemo(() => detectChord(shape.frets), [shape]);
+  const results = useMemo(() => searchChords(query), [query]);
   const silent = detected.name === null;
+  const searching = query.trim().length > 0;
 
   return (
     <div className="screen picker">
@@ -49,16 +56,62 @@ export default function ChordPicker({ onCancel, onConfirm }: Props) {
       </header>
 
       <ScrollArea>
-        <Fretboard shape={shape} onChange={setShape} />
+        {searching ? (
+          results.length === 0 ? (
+            <div className="empty">
+              <p className="empty__title">No Chords</p>
+              <p className="empty__hint">Nothing matches “{query.trim()}”.</p>
+            </div>
+          ) : (
+            <div className="results">
+              {results.map((chord, i) => (
+                <button
+                  className="chord"
+                  type="button"
+                  key={`${chord.name}-${i}`}
+                  onClick={() => {
+                    setShape(chord.shape);
+                    setQuery('');
+                    field.current?.blur();
+                  }}
+                >
+                  <ChordDiagram shape={chord.shape} />
+                  <span className="chord__name">{chord.name}</span>
+                </button>
+              ))}
+            </div>
+          )
+        ) : (
+          <Fretboard shape={shape} onChange={setShape} />
+        )}
       </ScrollArea>
 
       <div className="picker__dock">
-        {/* Search lands here next; the room is reserved so nothing has to move
-            when it does. */}
-        <div className="search search--placeholder" aria-hidden="true">
+        <label className="search">
           <SearchIcon className="search__icon" />
-          <span className="search__ghost">Search chords</span>
-        </div>
+          <input
+            ref={field}
+            className="search__input"
+            type="text"
+            placeholder="Search chords"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button
+              className="search__clear"
+              type="button"
+              aria-label="Clear search"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setQuery('');
+                field.current?.focus();
+              }}
+            >
+              <CloseIcon />
+            </button>
+          )}
+        </label>
 
         <div className="picker__actions">
           <button className="chip" type="button" onClick={onCancel}>

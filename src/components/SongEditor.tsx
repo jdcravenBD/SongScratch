@@ -251,6 +251,56 @@ export default function SongEditor({ id, onBack }: Props) {
             onClick={() => setMenuOpen(false)}
           />
           <div className="menu__panel">
+            {/* What the menu offers depends on which tab is showing: the bulk
+                actions belong to the tab, not to the song. */}
+            {tab === 'chords' && (
+              <button
+                className="menu__item menu__item--danger"
+                type="button"
+                disabled={chords.sections.length === 0}
+                onClick={async () => {
+                  await chords.clearAll();
+                  setMenuOpen(false);
+                }}
+              >
+                <TrashIcon />
+                <span>Delete All Sections</span>
+              </button>
+            )}
+
+            {tab === 'lyrics' && (
+              <button
+                className="menu__item menu__item--danger"
+                type="button"
+                onClick={() => {
+                  const el = docRef.current;
+                  if (el) {
+                    el.innerHTML = '';
+                    handleInput('');
+                  }
+                  setMenuOpen(false);
+                }}
+              >
+                <TrashIcon />
+                <span>Clear Lyrics</span>
+              </button>
+            )}
+
+            {tab === 'voice' && (
+              <button
+                className="menu__item menu__item--danger"
+                type="button"
+                disabled={voice.memos.length === 0}
+                onClick={async () => {
+                  await voice.removeMany(voice.memos.map((m) => m.id));
+                  setMenuOpen(false);
+                }}
+              >
+                <TrashIcon />
+                <span>Delete All Recordings</span>
+              </button>
+            )}
+
             <button
               className="menu__item"
               type="button"

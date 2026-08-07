@@ -49,21 +49,28 @@ export function useReorder(
   const begin = useCallback(
     (index: number, startY: number) => {
       prepare?.();
-      // Measured next frame, so anything the prepare step closed has actually
-      // gone before the rows are sized.
+      /*
+       * Two frames, not one. `prepare` collapses whatever was open, but that is
+       * React state — one frame later the DOM may still show the old height, and
+       * measuring then gives the dragged row the height of an *expanded* row.
+       * Every other row would then step aside by that much, tearing large gaps
+       * through the list. The second frame is after the collapse has landed.
+       */
       requestAnimationFrame(() => {
-        const rows = Array.from(listRef.current?.children ?? []) as HTMLElement[];
-        drag.current = {
-          index,
-          startY,
-          rects: rows.map((r) => {
-            const box = r.getBoundingClientRect();
-            return { top: box.top, height: box.height };
-          }),
-        };
-        setDragIndex(index);
-        setTarget(index);
-        setDy(0);
+        requestAnimationFrame(() => {
+          const rows = Array.from(listRef.current?.children ?? []) as HTMLElement[];
+          drag.current = {
+            index,
+            startY,
+            rects: rows.map((r) => {
+              const box = r.getBoundingClientRect();
+              return { top: box.top, height: box.height };
+            }),
+          };
+          setDragIndex(index);
+          setTarget(index);
+          setDy(0);
+        });
       });
     },
     [prepare],
@@ -79,16 +86,20 @@ export function useReorder(
       const offset = e.clientY - state.startY;
       setDy(offset);
 
-      const self = state.rects[state.index];
-      const centre = self.top + self.height / 2 + offset;
-      let next = state.index;
-      state.rects.forEach((rect, i) => {
-        if (i === state.index) return;
-        const mid = rect.top + rect.height / 2;
-        if (i > state.index && centre > mid) next = Math.max(next, i);
-        if (i < state.index && centre < mid) next = Math.min(next, i);
-      });
-      setTarget(next);
+      /*
+       * How many places it has moved, straight from the distance travelled.
+       *
+       * Comparing the dragged row against each neighbour's *original* midpoint
+       * looked right going one way and wrong coming back: the rows had already
+       * stepped aside, so on the return leg they swapped again the moment the
+       * finger crossed a line that no longer described where anything was. A
+       * row height per place, rounded, is symmetric — the same half-row of
+       * travel in either direction — and the rows are uniform here because the
+       * drag collapses anything open before it starts.
+       */
+      const step = state.rects[state.index].height || 1;
+      const moved = Math.round(offset / step);
+      setTarget(Math.max(0, Math.min(state.rects.length - 1, state.index + moved)));
     };
 
     const finish = () => {

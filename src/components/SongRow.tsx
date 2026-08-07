@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Song } from '../types';
+import { useSwipeGuard } from '../hooks/useSwipeGuard';
 import { formatWhen } from '../lib/format';
 import { ChordIcon, LyricsIcon, PinIcon, SelectDot, TrashIcon, VoiceIcon } from './icons';
 
@@ -70,6 +71,9 @@ export default function SongRow({
   const longTimer = useRef(0);
   const longFired = useRef(false);
   const moved = useRef(false);
+
+  // While a sideways swipe owns the gesture, the list must not scroll.
+  useSwipeGuard(fg, () => axis.current === 'x');
 
   const [open, setOpen] = useState<'none' | 'pin' | 'delete'>('none');
   const [pressing, setPressing] = useState(false);

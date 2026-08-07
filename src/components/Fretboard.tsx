@@ -37,37 +37,44 @@ export default function Fretboard({ shape, onChange }: Props) {
     onChange({ ...shape, frets: next, baseFret: 1 });
   };
 
-  const toggleMute = (string: number) => {
+  /**
+   * The control above the nut, which is the whole column — letter and mark
+   * together.
+   *
+   * It lifts a finger before it mutes: with something held on that string the
+   * first tap releases it, and only a string already ringing open goes on to be
+   * muted. Muting straight from a fretted note would throw away the position
+   * and silence the string in one go, which is never what a single tap means.
+   */
+  const nutTap = (string: number) => {
     const next = [...frets];
-    next[string] = next[string] === -1 ? 0 : -1;
+    next[string] = next[string] > 0 ? 0 : next[string] === -1 ? 0 : -1;
     onChange({ ...shape, frets: next, baseFret: 1 });
   };
 
   return (
     <div className="fb">
       <div className="fb__sticky">
-        <div className="fb__board fb__labels" aria-hidden="true">
-          {STRING_NAMES.map((name, s) => (
-            <span key={s} className="fb__label">
-              {name}
-            </span>
-          ))}
-        </div>
-
+        {/* Letter and mark are one target per string, so either can be hit. */}
         <div className="fb__board fb__head">
           {Array.from({ length: STRINGS }, (_, s) => {
             const muted = frets[s] === -1;
-            const open = frets[s] === 0;
+            const held = frets[s] > 0;
             return (
               <button
                 key={s}
                 className={`fb__open${muted ? ' is-muted' : ''}`}
                 type="button"
-                aria-label={`${muted ? 'Unmute' : 'Mute'} string ${STRINGS - s}`}
+                aria-label={
+                  held
+                    ? `Clear string ${STRINGS - s}`
+                    : `${muted ? 'Unmute' : 'Mute'} string ${STRINGS - s}`
+                }
                 aria-pressed={muted}
-                onClick={() => toggleMute(s)}
+                onClick={() => nutTap(s)}
               >
-                {muted ? '✕' : open ? '○' : ''}
+                <span className="fb__label">{STRING_NAMES[s]}</span>
+                <span className="fb__mark">{muted ? '✕' : held ? '' : '○'}</span>
               </button>
             );
           })}
