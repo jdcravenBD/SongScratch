@@ -52,6 +52,10 @@
   --nav-h: 50px;
   --dock-h: 62px;
   --pill: 999px;
+  /* One height for every glass control — chips, icon buttons, the search
+     field, the tabs and the format bar all sit on this, so nothing reads as
+     slightly the wrong size beside its neighbour. */
+  --control-h: 48px;
 
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
 
@@ -240,7 +244,8 @@ input {
   white-space: nowrap;
   font-size: 15px;
   font-weight: 500;
-  padding: 10px 18px;
+  height: var(--control-h);
+  padding: 0 20px;
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
@@ -731,7 +736,7 @@ input {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  height: 48px;
+  height: var(--control-h);
   padding: 0 16px;
   border-radius: var(--pill);
   background: var(--fill);
@@ -804,9 +809,9 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  max-width: 48px;
+  width: var(--control-h);
+  height: var(--control-h);
+  max-width: var(--control-h);
   margin-left: 12px;
   overflow: hidden;
   border-radius: var(--pill);
@@ -898,14 +903,14 @@ input {
   --ebar-h: 52px;
   /* Only the top bar sits above the page now; the tabs moved to the bottom. */
   --nav-h: var(--ebar-h);
-  --dock-h: 66px;
+  --dock-h: 72px;
   animation: editor-in 0.26s var(--ease) both;
 }
 
 /* The voice tab stacks its record control above the tabs, so the bottom bar is
    taller — and ScrollArea insets the list to match, off this one number. */
 .editor.is-voice {
-  --dock-h: 158px;
+  --dock-h: 196px;
 }
 
 .editor.is-voice .edock {
@@ -915,7 +920,7 @@ input {
 
 /* Chords stacks a New Section button above the tabs. */
 .editor.is-chords {
-  --dock-h: 122px;
+  --dock-h: 130px;
 }
 
 .editor.is-chords .edock {
@@ -988,8 +993,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: var(--control-h);
+  height: var(--control-h);
   border-radius: var(--pill);
   color: var(--text);
   background: var(--fill);
@@ -1041,7 +1046,10 @@ input {
 }
 
 .tabs__tab {
-  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-h);
+  padding: 0 18px;
   border-radius: var(--pill);
   font-size: 15px;
   font-weight: 500;
@@ -1155,7 +1163,8 @@ input {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 5px 8px;
+  height: var(--control-h);
+  padding: 0 6px;
   border-radius: var(--pill);
   background: rgba(28, 28, 30, 0.86);
   border: 1px solid var(--stroke);
@@ -2019,7 +2028,7 @@ input {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 11px 22px;
+  padding: 0 24px;
 }
 
 /* ============================================================ chord picker ==
@@ -2028,8 +2037,8 @@ input {
  */
 
 .picker {
-  --nav-h: 56px;
-  --dock-h: 74px;
+  --nav-h: 62px;
+  --dock-h: 130px;
   z-index: 50;
   background: var(--bg);
   animation: editor-in 0.24s var(--ease) both;
@@ -2043,12 +2052,26 @@ input {
   height: calc(var(--safe-t) + var(--nav-h));
   z-index: 30;
   /* Opaque, so the neck is cut off cleanly at the nut instead of carrying on
-     up the screen behind the search bar. */
+     up the screen behind it. */
   background: var(--bg);
   display: flex;
   align-items: center;
+  gap: 10px;
   padding: var(--safe-t) calc(var(--edge) + var(--safe-r)) 0
     calc(var(--edge) + var(--safe-l));
+}
+
+/* The name of what is being built, where a screen says what it is. */
+.picker__title {
+  flex: 1 1 auto;
+  margin: 0;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Reserved, not working yet — deliberately inert rather than a field that
@@ -2067,38 +2090,32 @@ input {
   font-size: 16px;
 }
 
-.picker__actions {
+.picker__dock {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 20;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px calc(var(--edge) + var(--safe-r)) calc(12px + var(--safe-b))
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px calc(var(--edge) + var(--safe-r)) calc(12px + var(--safe-b))
     calc(var(--edge) + var(--safe-l));
 }
 
-/* What the shape is called, sat between the two decisions about it. */
-.picker__name {
-  flex: 1 1 auto;
-  margin: 0;
-  text-align: center;
-  font-size: 21px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Sat together in the middle: two answers to one question, not two ends of
+   the screen. */
+.picker__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 }
 
-/* A shape with no name of its own, listed by its notes. */
-.picker__name.is-unnamed {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-2);
+/* Anchored under the button it came from, like the editor's. */
+.menu__panel--picker {
+  top: calc(var(--safe-t) + var(--nav-h) - 4px);
+  min-width: 200px;
 }
 
 /* -------------------------------------------------------------- fretboard -- */
@@ -2123,6 +2140,19 @@ input {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   align-items: center;
+}
+
+.fb__labels {
+  height: 20px;
+}
+
+/* Which string is which, above the open/muted marks. */
+.fb__label {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
 }
 
 .fb__head {
@@ -2519,12 +2549,8 @@ input {
     padding-bottom: 7px;
   }
 
-  .fmt__bar {
-    padding: 6px 8px;
-  }
-
   .fmt__tool {
-    height: 46px;
+    height: 40px;
   }
 
   .fmt__panel {

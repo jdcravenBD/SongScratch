@@ -6,6 +6,8 @@ const STRINGS = 6;
 /** Frets carrying a single inlay; the octaves get a pair. */
 const INLAYS = new Set([3, 5, 7, 9, 15, 17, 19, 21]);
 const DOUBLE_INLAYS = new Set([12, 24]);
+/** Standard tuning, low to high. The top E is written small, as it is on paper. */
+const STRING_NAMES = ['E', 'A', 'D', 'G', 'B', 'e'];
 
 interface Props {
   shape: ChordShape;
@@ -44,6 +46,14 @@ export default function Fretboard({ shape, onChange }: Props) {
   return (
     <div className="fb">
       <div className="fb__sticky">
+        <div className="fb__board fb__labels" aria-hidden="true">
+          {STRING_NAMES.map((name, s) => (
+            <span key={s} className="fb__label">
+              {name}
+            </span>
+          ))}
+        </div>
+
         <div className="fb__board fb__head">
           {Array.from({ length: STRINGS }, (_, s) => {
             const muted = frets[s] === -1;
