@@ -2028,7 +2028,7 @@ input {
  */
 
 .picker {
-  --nav-h: 64px;
+  --nav-h: 56px;
   --dock-h: 74px;
   z-index: 50;
   background: var(--bg);
@@ -2042,6 +2042,9 @@ input {
   right: 0;
   height: calc(var(--safe-t) + var(--nav-h));
   z-index: 30;
+  /* Opaque, so the neck is cut off cleanly at the nut instead of carrying on
+     up the screen behind the search bar. */
+  background: var(--bg);
   display: flex;
   align-items: center;
   padding: var(--safe-t) calc(var(--edge) + var(--safe-r)) 0
@@ -2123,7 +2126,14 @@ input {
 }
 
 .fb__head {
-  height: 34px;
+  height: 28px;
+}
+
+/* Without this the grid collapses to nothing: the cells size from the row, and
+   a zero-height cell means zero-height strings — invisible, and with no target
+   left to tap. */
+.fb__cells {
+  height: 100%;
 }
 
 .fb__row {
@@ -2157,9 +2167,15 @@ input {
  */
 .fb__sticky {
   position: sticky;
-  top: calc(var(--safe-t) + var(--nav-h));
+  /*
+   * Zero, not the height of the bar above it. A sticky offset is measured from
+   * the scrollport *already reduced by the scroll container's padding*, and
+   * that padding is what clears the search bar — so naming the bar's height
+   * here again pushed the nut down by it twice.
+   */
+  top: 0;
   z-index: 4;
-  padding-top: 4px;
+  padding-top: 2px;
   background: var(--bg);
 }
 
