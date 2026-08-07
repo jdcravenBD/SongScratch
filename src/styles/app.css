@@ -34,16 +34,19 @@
    * Kept moderate on purpose: past about 20px the backdrop stops reading as
    * "seen through something" and turns into a wash.
    */
-  --glass-blur: blur(14px) saturate(160%);
+  --glass-blur: blur(8px) saturate(135%);
 
   /*
    * The frost itself. Blur alone gives smooth glass; real frosted glass is
    * rough, and it is the roughness the eye reads. This is a tile of grey
-   * noise laid over the blur — fine enough not to look like a texture, strong
-   * enough to see. Turn `opacity` in the SVG up or down to taste; it is the
-   * only number that matters here.
+   * noise laid over the blur.
+   *
+   * It has to stay near the threshold of being noticed. Grey noise over a
+   * black page lightens as much as it textures, so anything heavy stops
+   * reading as frost and starts reading as grime — the `opacity` below is the
+   * only number that matters, and small is right.
    */
-  --glass-noise: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+  --glass-noise: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.09'/%3E%3C/svg%3E");
 
   /* --- ink --------------------------------------------------------------- */
   --text: #ffffff;
