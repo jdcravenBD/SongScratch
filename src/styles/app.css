@@ -913,6 +913,16 @@ input {
   gap: 4px;
 }
 
+/* Chords stacks a New Section button above the tabs. */
+.editor.is-chords {
+  --dock-h: 122px;
+}
+
+.editor.is-chords .edock {
+  flex-direction: column;
+  gap: 8px;
+}
+
 @keyframes editor-in {
   from {
     opacity: 0;
@@ -1788,6 +1798,217 @@ input {
 .tool__done {
   font-size: 15px;
   font-weight: 500;
+}
+
+/* ========================================================= chord sections ==
+ * The progression as a stack of named sections, sized like the song list. The
+ * grip on the left is the only handle for reordering; everything else about the
+ * row behaves as the other lists do.
+ */
+
+.sects {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sect {
+  position: relative;
+  /* Rows step aside during a reorder; the one under the finger must not. */
+  transition: transform 0.18s var(--ease);
+}
+
+.sect.is-dragging {
+  z-index: 5;
+  transition: none;
+}
+
+.sect__fg {
+  position: relative;
+  z-index: 1;
+  background: var(--bg);
+  will-change: transform;
+}
+
+.sect.is-dragging .sect__fg {
+  border-radius: 12px;
+  background: #131315;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+.sect__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px calc(var(--text-edge) + var(--safe-r)) 10px
+    calc(var(--edge) + var(--safe-l));
+  min-height: 62px;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.sect + .sect .sect__head::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--text-edge) + var(--safe-l));
+  right: 12px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.sect.is-dragging .sect__head::before,
+.sect.is-dragging + .sect .sect__head::before {
+  opacity: 0;
+}
+
+/* Owns both axes while it is held, so the list must not scroll out from under
+   a reorder — the one place `touch-action: none` is the right answer. */
+.sect__grip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 44px;
+  margin-left: -4px;
+  color: var(--text-3);
+  cursor: grab;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sect__grip:active {
+  cursor: grabbing;
+  color: var(--text-2);
+}
+
+.sect__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sect__name {
+  min-width: 0;
+  font-size: var(--fs-row);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sect__rename {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-size: var(--fs-row);
+  font-weight: 600;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sect__meta {
+  font-size: var(--fs-meta);
+  color: var(--text-2);
+}
+
+.sect__body {
+  padding: 2px calc(var(--text-edge) + var(--safe-r)) 18px
+    calc(var(--text-edge) + var(--safe-l));
+  animation: memo-open 0.22s var(--ease) both;
+}
+
+.sect__action {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  height: 46px;
+  width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--pill);
+  color: #fff;
+  background: var(--danger);
+  transition: width var(--reveal-ms, 0s) var(--ease);
+}
+
+.sect__action svg {
+  flex: 0 0 auto;
+  opacity: var(--icon-op, 0);
+  transition: opacity 0.18s ease;
+}
+
+.sect[data-swipe='delete'] .sect__action {
+  width: var(--reveal, 0px);
+}
+
+/* ----------------------------------------------------------- chord cards -- */
+
+.chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.chord {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.diagram {
+  width: 62px;
+  height: 92px;
+  color: var(--text);
+}
+
+.diagram__base {
+  fill: var(--text-2);
+}
+
+.chord__name {
+  font-size: var(--fs-meta);
+  font-weight: 600;
+}
+
+.chip--add {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chip--wide {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 22px;
+}
+
+/* The placeholder behind "Add chord" until the picker exists. */
+.soon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0 4px;
+}
+
+.soon__text {
+  margin: 0;
+  font-size: var(--fs-body);
+  color: var(--text-2);
 }
 
 /* ------------------------------------------------------- last-edited stamp -- */

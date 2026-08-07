@@ -57,9 +57,10 @@ export interface SongSection {
 /**
  * Splits pinned songs out to the top and leaves the rest as one unbroken run.
  *
- * Only "Pinned" earns a heading — it marks a choice the user made. The date
- * headings that used to sit here labelled something the row already says in its
- * own timestamp, and chopped a short list into more headings than songs.
+ * Two headings only: "Pinned" for the ones the user chose to keep at the top,
+ * and "Recent" for everything else. The date headings that used to sit here
+ * labelled something each row already says in its own timestamp, and chopped a
+ * short list into more headings than songs.
  *
  * `songs` arrives newest-first, so both parts keep that order.
  */
@@ -69,6 +70,6 @@ export function groupSongs(songs: Song[]): SongSection[] {
   const rest = songs.filter((s) => !s.pinned);
 
   if (pinned.length) out.push({ key: 'pinned', label: 'Pinned', songs: pinned });
-  if (rest.length) out.push({ key: 'rest', label: '', songs: rest });
+  if (rest.length) out.push({ key: 'rest', label: 'Recent', songs: rest });
   return out;
 }

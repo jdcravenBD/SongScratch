@@ -232,6 +232,15 @@ export function Forward10Icon({ size = 26, className }: IconProps) {
   );
 }
 
+/** Reorder grip — the bars you drag a section by. */
+export function GripIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className} strokeWidth={1.9}>
+      <path d="M5 8h14M5 12h14M5 16h14" />
+    </svg>
+  );
+}
+
 /** Add another take to an existing recording. */
 export function PlusIcon({ size = 24, className }: IconProps) {
   return (

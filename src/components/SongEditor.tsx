@@ -7,11 +7,13 @@ import { formatStamp } from '../lib/format';
 import { newId } from '../lib/id';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useVoiceMemos } from '../hooks/useVoiceMemos';
+import { useChordSections } from '../hooks/useChordSections';
 import { deleteMemosForSong } from '../db/memos';
 import ScrollArea from './ScrollArea';
 import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
 import { VoiceDock, VoiceList } from './VoiceTab';
+import { ChordsDock, ChordsList } from './ChordsTab';
 import {
   BackIcon,
   DuplicateIcon,
@@ -57,6 +59,7 @@ export default function SongEditor({ id, onBack }: Props) {
   const pending = useRef<string | null>(null);
   const keyboardInset = useKeyboardInset();
   const voice = useVoiceMemos(id, tab === 'voice');
+  const chords = useChordSections(id, tab === 'chords');
 
   useEffect(() => {
     let alive = true;
@@ -142,7 +145,7 @@ export default function SongEditor({ id, onBack }: Props) {
     <div
       className={`screen editor${editing ? ' is-editing' : ''}${
         tab === 'voice' ? ' is-voice' : ''
-      }`}
+      }${tab === 'chords' ? ' is-chords' : ''}`}
     >
       <header className="ebar">
         <button className="iconbtn" type="button" aria-label="Back to songs" onClick={onBack}>
@@ -201,10 +204,7 @@ export default function SongEditor({ id, onBack }: Props) {
         ) : tab === 'voice' ? (
           <VoiceList voice={voice} />
         ) : (
-          <div className="empty">
-            <p className="empty__title">{TAB_LABEL[tab]}</p>
-            <p className="empty__hint">This tab is next on the list.</p>
-          </div>
+          <ChordsList chords={chords} />
         )}
       </ScrollArea>
 
@@ -225,6 +225,7 @@ export default function SongEditor({ id, onBack }: Props) {
            editing starts by tapping the page where you want the caret. */
         <div className="edock">
           {tab === 'voice' && <VoiceDock voice={voice} />}
+          {tab === 'chords' && <ChordsDock chords={chords} />}
 
           <nav className="tabs" aria-label="Song sections">
             {TABS.map((t) => (

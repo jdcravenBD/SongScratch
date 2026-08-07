@@ -31,8 +31,40 @@ export interface Song {
    * on save so the song list never has to parse this to draw a row.
    */
   lyrics?: string;
+  /** The chord tab's sections, in the order the song plays them. */
+  chordSections?: ChordSection[];
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * A chord shape on the fretboard.
+ *
+ * `frets` is one entry per string, low to high: -1 muted, 0 open, otherwise the
+ * fret pressed, counted from `baseFret`. Storing the shape rather than just a
+ * name means a diagram can always be drawn, including for voicings that have no
+ * agreed name.
+ */
+export interface ChordShape {
+  frets: number[];
+  /** Fret the diagram starts at; 1 unless the shape sits up the neck. */
+  baseFret: number;
+  /** Optional finger numbers (1–4) per string, for the dots. */
+  fingers?: number[];
+}
+
+export interface Chord {
+  id: string;
+  /** e.g. "Am7" */
+  name: string;
+  shape: ChordShape;
+}
+
+/** A named run of chords — verse, chorus, and so on. */
+export interface ChordSection {
+  id: string;
+  name: string;
+  chords: Chord[];
 }
 
 /**
