@@ -25,6 +25,26 @@
   --hairline: rgba(255, 255, 255, 0.13);
   --stroke: rgba(255, 255, 255, 0.16);
 
+  /* --- glass -------------------------------------------------------------
+   * One blur for every glass control. They had drifted to five different
+   * radii, which is why some read as heavier than others sitting side by
+   * side — the search field over a scrolling list worst of all, since it has
+   * the most behind it to smear.
+   *
+   * Kept moderate on purpose: past about 20px the backdrop stops reading as
+   * "seen through something" and turns into a wash.
+   */
+  --glass-blur: blur(14px) saturate(160%);
+
+  /*
+   * The frost itself. Blur alone gives smooth glass; real frosted glass is
+   * rough, and it is the roughness the eye reads. This is a tile of grey
+   * noise laid over the blur — fine enough not to look like a texture, strong
+   * enough to see. Turn `opacity` in the SVG up or down to taste; it is the
+   * only number that matters here.
+   */
+  --glass-noise: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.42'/%3E%3C/svg%3E");
+
   /* --- ink --------------------------------------------------------------- */
   --text: #ffffff;
   --text-2: #9a9aa1; /* dates, previews, counts */
@@ -249,8 +269,8 @@ input {
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.16s ease,
@@ -741,8 +761,8 @@ input {
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   transition: background 0.16s ease;
 }
 
@@ -818,8 +838,8 @@ input {
   color: var(--text);
   background: var(--fill);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.16s ease,
@@ -967,8 +987,8 @@ input {
   border-radius: var(--pill);
   background: var(--fill);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   overflow: hidden;
 }
 
@@ -999,8 +1019,8 @@ input {
   color: var(--text);
   background: var(--fill);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   -webkit-tap-highlight-color: transparent;
   transition:
     background 0.16s ease,
@@ -1069,8 +1089,8 @@ input {
   color: var(--text);
   background: var(--fill);
   border-color: var(--stroke);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 /* ------------------------------------------------------------ the song sheet -- */
@@ -1168,8 +1188,8 @@ input {
   border-radius: var(--pill);
   background: rgba(28, 28, 30, 0.86);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 .fmt__tool {
@@ -1220,8 +1240,8 @@ input {
   border-radius: 18px;
   background: rgba(28, 28, 30, 0.92);
   border: 1px solid var(--stroke);
-  backdrop-filter: blur(22px) saturate(150%);
-  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   animation: panel-in 0.16s var(--ease) both;
 }
 
@@ -2480,14 +2500,26 @@ input {
        reads as a pale grey slab sitting on the black rather than as glass over
        it. This is close to the weight iOS's own bars carry. */
     background: rgba(255, 255, 255, 0.075);
-    backdrop-filter: blur(30px) saturate(180%);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     border: none;
     box-shadow:
       /* A hairline a touch brighter than the fill, all the way round. This is
          the whole of the edge treatment — no rim light, no bottom bounce. */
       inset 0 0 0 0.5px rgba(255, 255, 255, 0.1),
       0 1px 8px rgba(0, 0, 0, 0.24);
+  }
+
+  /*
+   * Panels are read against rather than merely tapped, so they take a heavier,
+   * darker fill than the controls do. The blur is the same — it is the fill
+   * that has to hold the text up, and a lighter blur leaves more of the page
+   * showing through than a menu can afford.
+   */
+  .menu__panel,
+  .fmt__bar,
+  .fmt__panel {
+    background-color: rgba(30, 30, 32, 0.86);
   }
 
   /* Inside a group the buttons are cut out of the one pill, not stacked on it. */
@@ -2517,23 +2549,23 @@ input {
   /* The swipe actions are glass too, over the row rather than the page. */
   .row__action--pin {
     background: rgba(120, 120, 128, 0.55);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
   }
 
   .row__action--delete {
     background: rgba(255, 69, 58, 0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
   }
 
   /* The sheet is a glass slab rather than a grey card. */
   .sheet__panel {
     background: rgba(58, 58, 62, 0.78);
-    backdrop-filter: blur(34px) saturate(180%);
-    -webkit-backdrop-filter: blur(34px) saturate(180%);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     box-shadow:
       inset 0 0 0 0.5px rgba(255, 255, 255, 0.14),
       0 10px 40px rgba(0, 0, 0, 0.5);
@@ -2557,4 +2589,29 @@ input {
     margin-bottom: 7px;
     padding: 6px 9px;
   }
+}
+
+/* ================================================================= frost ==
+ * The grain that makes the glass read as frosted rather than merely blurred.
+ *
+ * Applied last, and as `background-image`, so it survives whichever background
+ * shorthand the desktop or handset variant above happened to set — those write
+ * the fill colour, this writes the texture over it.
+ */
+.chip,
+.search,
+.compose,
+.iconbtn,
+.pillgroup,
+.tabs__tab.is-on,
+.fmt__bar,
+.fmt__panel,
+.menu__panel {
+  background-image: var(--glass-noise);
+  background-size: 140px 140px;
+}
+
+/* The one solid control is an object light falls on, not a pane to see through. */
+.chip--solid {
+  background-image: none;
 }
