@@ -47,61 +47,74 @@ export function soundingNotes(frets: number[]): number[] {
 }
 
 export interface Detected {
-  /** What to call it, e.g. "Am7" or "C/G". Null when nothing is sounding. */
+  /** What to call it, e.g. "Am7" or "C/G". Null only when nothing is sounding. */
   name: string | null;
-  /** True when it matched a known quality rather than being listed as notes. */
-  known: boolean;
+  /** True when every note fits the quality exactly, with none left over. */
+  exact: boolean;
 }
 
 /**
  * Works out what a shape is called.
  *
- * Tries every root against every quality and keeps the best fit, preferring the
- * chord whose root is in the bass and, failing that, the simpler quality. A
- * voicing missing its fifth is matched too — guitarists drop the fifth
- * constantly, and refusing to name those would make the finder useless on
- * exactly the shapes people reach for.
+ * There is always an answer as long as something is sounding: every root is
+ * tried against every quality and the closest fit wins, rather than holding out
+ * for a perfect match and giving up. That matters for a reverse finder, where
+ * half of what gets played is a grip someone found rather than a textbook
+ * voicing — being told the nearest chord is far more use than being told
+ * nothing.
  *
- * Anything it can't name comes back as its note names, because a shape you
- * found and can't name is still worth writing down.
+ * The costs below are what make the answer musical rather than merely
+ * arithmetic: a note that doesn't belong to the chord at all is the worst thing
+ * that can happen, missing the root is nearly as bad, and a missing fifth
+ * hardly counts — guitarists drop fifths constantly.
+ *
+ * This only decides what the shape is *called*. The frets the user chose are
+ * kept exactly as played.
  */
 export function detectChord(frets: number[]): Detected {
   const midi = soundingNotes(frets);
-  if (midi.length === 0) return { name: null, known: false };
+  if (midi.length === 0) return { name: null, exact: false };
 
   const bass = Math.min(...midi) % 12;
   const pcs = [...new Set(midi.map((n) => n % 12))].sort((a, b) => a - b);
 
-  if (pcs.length === 1) return { name: noteName(pcs[0]), known: true };
+  if (pcs.length === 1) return { name: noteName(pcs[0]), exact: true };
 
-  let best: { score: number; root: number; suffix: string } | null = null;
+  // Seeded rather than left null: there is always a closest fit, so the loop
+  // below can only improve on this.
+  let best = { score: Infinity, root: 0, suffix: '', exact: false };
 
   for (let root = 0; root < 12; root++) {
     FORMULAS.forEach(([suffix, intervals], rank) => {
-      const full = intervals.map((iv) => (root + iv) % 12);
-      // …and the same chord with its fifth left out.
-      const noFifth = intervals.filter((iv) => iv !== 7).map((iv) => (root + iv) % 12);
+      const tones = intervals.map((iv) => (root + iv) % 12);
+      const set = new Set(tones);
 
-      for (const [candidate, penalty] of [
-        [full, 0],
-        [noFifth, 30],
-      ] as Array<[number[], number]>) {
-        if (intervals.length < 4 && penalty > 0) continue; // triads keep their fifth
-        const set = new Set(candidate);
-        if (set.size !== pcs.length) continue;
-        if (!pcs.every((pc) => set.has(pc))) continue;
+      // Notes being played that this chord has no place for.
+      const extra = pcs.filter((pc) => !set.has(pc)).length;
 
-        const score = (root === bass ? 0 : 60) + penalty + rank;
-        if (!best || score < best.score) best = { score, root, suffix };
+      // Chord tones that aren't being played, weighted by how much they matter.
+      const missing = tones
+        .filter((t) => !pcs.includes(t))
+        .reduce((sum, tone) => {
+          const interval = (tone - root + 12) % 12;
+          if (interval === 7) return sum + 0.4; // fifth: barely missed
+          if (interval === 0) return sum + 3; // root: badly missed
+          return sum + 1.6; // third, seventh, colour
+        }, 0);
+
+      const score =
+        extra * 3 +
+        missing +
+        rank * 0.02 + // ties go to the plainer quality
+        (root === bass ? 0 : 0.8); // and to the chord sat on its own root
+
+      if (score < best.score) {
+        best = { score, root, suffix, exact: extra === 0 && missing === 0 };
       }
     });
   }
 
-  if (best) {
-    const { root, suffix } = best as { score: number; root: number; suffix: string };
-    const slash = root !== bass ? `/${noteName(bass)}` : '';
-    return { name: `${noteName(root)}${suffix}${slash}`, known: true };
-  }
-
-  return { name: pcs.map(noteName).join(' '), known: false };
+  const { root, suffix, exact } = best;
+  const slash = root !== bass ? `/${noteName(bass)}` : '';
+  return { name: `${noteName(root)}${suffix}${slash}`, exact };
 }

@@ -253,25 +253,29 @@ export default function SectionRow({
 
         {expanded && (
           <div className="sect__body">
-            {count > 0 && (
-              <div className="chords">
-                {section.chords.map((chord) => (
-                  <div className="chord" key={chord.id}>
-                    <ChordDiagram shape={chord.shape} />
-                    <span className="chord__name">{chord.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* The add button is the next slot in the progression, shaped and
+                sized like the fingerings it sits beside, so the row reads as
+                one continuous run with an empty place at the end. */}
+            <div className="chords">
+              {section.chords.map((chord) => (
+                <div className="chord" key={chord.id}>
+                  <ChordDiagram shape={chord.shape} />
+                  <span className="chord__name">{chord.name}</span>
+                </div>
+              ))}
 
-            <button
-              className="chip chip--add"
-              type="button"
-              onClick={() => onAddChord(section.id)}
-            >
-              <PlusIcon size={17} />
-              <span>Add chord</span>
-            </button>
+              <button
+                className="chord chord--add"
+                type="button"
+                aria-label="Add chord"
+                onClick={() => onAddChord(section.id)}
+              >
+                <span className="chord__slot">
+                  <PlusIcon size={22} />
+                </span>
+                <span className="chord__name">Add</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

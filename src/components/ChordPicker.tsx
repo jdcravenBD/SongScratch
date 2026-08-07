@@ -45,9 +45,7 @@ export default function ChordPicker({ onCancel, onConfirm }: Props) {
           Cancel
         </button>
 
-        <p className={`picker__name${detected.known ? '' : ' is-unnamed'}`}>
-          {detected.name ?? '—'}
-        </p>
+        <p className="picker__name">{detected.name ?? '—'}</p>
 
         <button
           className="chip chip--solid"

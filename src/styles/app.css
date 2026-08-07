@@ -1970,9 +1970,34 @@ input {
 }
 
 .diagram {
-  width: 62px;
+  width: 68px;
   height: 92px;
   color: var(--text);
+}
+
+/* The add button is the next place in the progression, so it is the same size
+   and shape as a fingering rather than a chip below them. */
+.chord--add {
+  color: var(--text-2);
+  transition: color 0.15s ease;
+}
+
+.chord--add:hover {
+  color: var(--text);
+}
+
+.chord__slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 92px;
+  border-radius: 12px;
+  border: 1.5px dashed var(--stroke);
+}
+
+.chord--add:hover .chord__slot {
+  border-color: rgba(255, 255, 255, 0.32);
 }
 
 .diagram__base {
@@ -2025,6 +2050,10 @@ input {
 
 /* Reserved, not working yet — deliberately inert rather than a field that
    takes a tap and does nothing. */
+.picker .fade--top {
+  display: none;
+}
+
 .search--placeholder {
   opacity: 0.45;
   pointer-events: none;
@@ -2072,17 +2101,24 @@ input {
 /* -------------------------------------------------------------- fretboard -- */
 
 .fb {
-  --gutter: 26px;
   /* Sized so roughly eight frets are in view on a handset once the real
      safe-area insets are taken out — and a generous tap target with it. */
   --fret-h: 76px;
-  padding: 0 calc(var(--edge) + var(--safe-r)) 8px calc(var(--edge) + var(--safe-l));
+  /* Share of the screen the strings themselves occupy. */
+  --board: 65%;
+  padding-bottom: 8px;
 }
 
-.fb__head,
-.fb__row {
+/*
+ * The strings, centred on the screen. The fret numbers live in the margin
+ * beside this rather than in the flow, so however wide they get the board stays
+ * centred.
+ */
+.fb__board {
+  width: var(--board);
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: var(--gutter) repeat(6, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   align-items: center;
 }
 
@@ -2095,12 +2131,36 @@ input {
   height: var(--fret-h);
 }
 
-/* Fret number down the side. */
+/* Occupies exactly the margin to the left of the board. */
 .fb__gutter {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: calc((100% - var(--board)) / 2);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
   font-size: 11px;
   color: var(--text-3);
-  text-align: center;
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/*
+ * The nut and the open/muted marks hold their place while the neck scrolls
+ * under them: up at the twelfth fret you still need to see which strings ring
+ * and which are silenced. Opaque, so the strings pass behind rather than
+ * through. (The picker drops its top fade for this reason — this is the top
+ * edge treatment there.)
+ */
+.fb__sticky {
+  position: sticky;
+  top: calc(var(--safe-t) + var(--nav-h));
+  z-index: 4;
+  padding-top: 4px;
+  background: var(--bg);
 }
 
 /* Open / muted, and the tap target that switches them. */
@@ -2119,8 +2179,9 @@ input {
 }
 
 .fb__nut {
+  display: block;
   height: 5px;
-  margin: 0 0 0 var(--gutter);
+  margin: 0 auto;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.82);
 }
@@ -2139,12 +2200,12 @@ input {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* The fret wire under each row. */
+/* The fret wire under each row, spanning only the board. */
 .fb__row::after {
   content: '';
   position: absolute;
-  left: var(--gutter);
-  right: 0;
+  left: calc((100% - var(--board)) / 2);
+  width: var(--board);
   bottom: 0;
   height: 1px;
   background: rgba(255, 255, 255, 0.24);
@@ -2189,11 +2250,11 @@ input {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 9px;
-  height: 9px;
-  margin: -4.5px 0 0 -4.5px;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
   border-radius: var(--pill);
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.13);
 }
 
 .fb__inlay--mid {

@@ -5,8 +5,9 @@ const FRETS = 4;
 const STRINGS = 6;
 
 /* Geometry, in the SVG's own units. */
-const W = 62;
-const PAD_X = 8;
+const W = 70;
+const PAD_L = 17; // room for the fret number down the side
+const PAD_R = 7;
 const TOP = 16; // room above the nut for the open/muted marks
 const BOT = 6;
 const H = 92;
@@ -15,20 +16,27 @@ const H = 92;
  * A chord as a fretboard grid: strings vertical low-to-high, frets horizontal,
  * a dot per stopped string and o / x above the nut for the rest.
  *
- * Drawn from the stored shape rather than looked up from the name, so a voicing
- * with no agreed name still shows something — which matters for a scratchpad,
- * where half of what gets written down is a shape someone found rather than a
- * chord they could name.
+ * The window is worked out from the shape itself rather than trusted from the
+ * record. A grip up at the ninth fret has nothing in the first four, so a
+ * diagram pinned to the nut would draw an empty grid — it starts at the lowest
+ * stopped fret instead, and says which one that is.
  */
 export default function ChordDiagram({ shape }: { shape: ChordShape }) {
-  const { frets, baseFret } = shape;
-  const gridW = W - PAD_X * 2;
+  const { frets } = shape;
+
+  const stopped = frets.filter((f) => f > 0);
+  const lowest = stopped.length ? Math.min(...stopped) : 1;
+  const highest = stopped.length ? Math.max(...stopped) : 1;
+  // Stay at the nut while the shape fits there; otherwise slide up to it.
+  const base = highest <= FRETS ? 1 : lowest;
+  const atNut = base === 1;
+
+  const gridW = W - PAD_L - PAD_R;
   const gridH = H - TOP - BOT;
   const stringGap = gridW / (STRINGS - 1);
   const fretGap = gridH / FRETS;
-  const open = baseFret <= 1;
 
-  const x = (s: number) => PAD_X + s * stringGap;
+  const x = (s: number) => PAD_L + s * stringGap;
   const y = (f: number) => TOP + f * fretGap;
 
   return (
@@ -38,24 +46,24 @@ export default function ChordDiagram({ shape }: { shape: ChordShape }) {
       role="img"
       aria-label="Chord fingering"
     >
-      {/* Nut: solid when the shape sits at the top of the neck. */}
+      {/* Nut: solid only when the shape really is at the top of the neck. */}
       <line
-        x1={PAD_X}
+        x1={PAD_L}
         y1={TOP}
-        x2={W - PAD_X}
+        x2={W - PAD_R}
         y2={TOP}
         stroke="currentColor"
-        strokeWidth={open ? 3 : 1}
+        strokeWidth={atNut ? 3 : 1}
         strokeLinecap="round"
-        opacity={open ? 0.9 : 0.35}
+        opacity={atNut ? 0.9 : 0.35}
       />
 
       {Array.from({ length: FRETS }, (_, i) => (
         <line
           key={`f${i}`}
-          x1={PAD_X}
+          x1={PAD_L}
           y1={y(i + 1)}
-          x2={W - PAD_X}
+          x2={W - PAD_R}
           y2={y(i + 1)}
           stroke="currentColor"
           strokeWidth={1}
@@ -76,12 +84,17 @@ export default function ChordDiagram({ shape }: { shape: ChordShape }) {
         />
       ))}
 
-      {/* Where the shape starts, when it isn't at the nut. */}
-      {!open && (
-        <text className="diagram__base" x={2} y={y(0.8)} fontSize={9}>
-          {baseFret}
-        </text>
-      )}
+      {/* Where the window starts. Always shown, so a shape is never ambiguous
+          about how far up the neck it belongs. */}
+      <text
+        className="diagram__base"
+        x={PAD_L - 5}
+        y={y(0.62)}
+        fontSize={9.5}
+        textAnchor="end"
+      >
+        {base}
+      </text>
 
       {frets.map((fret, s) => {
         if (fret < 0) {
@@ -107,9 +120,12 @@ export default function ChordDiagram({ shape }: { shape: ChordShape }) {
             />
           );
         }
-        // Dots sit between fret lines, not on them.
+        // Placed against the window, not the neck, and dropped if it falls
+        // outside — which can only happen on a spread wider than a hand.
+        const row = fret - base + 1;
+        if (row < 1 || row > FRETS) return null;
         return (
-          <circle key={s} cx={x(s)} cy={y(fret - 0.5)} r={4.2} fill="currentColor" />
+          <circle key={s} cx={x(s)} cy={y(row - 0.5)} r={4.2} fill="currentColor" />
         );
       })}
     </svg>
