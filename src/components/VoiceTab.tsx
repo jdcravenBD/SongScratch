@@ -24,7 +24,7 @@ export function VoiceList({ voice }: { voice: VoiceMemos }) {
     voice.setExpandedId(null);
     voice.setRevealedId(null);
   }, [voice]);
-  const { listRef, begin, dragIndex, dy, liftFor } = useReorder(commit, prepare);
+  const { listRef, begin, dragIndex, dy, liftFor, settling } = useReorder(commit, prepare);
 
   return (
     <>
@@ -55,7 +55,7 @@ export function VoiceList({ voice }: { voice: VoiceMemos }) {
           </p>
         </div>
       ) : (
-        <ul className="memos" ref={listRef}>
+        <ul className={`memos${settling ? ' is-settling' : ''}`} ref={listRef}>
           {memos.map((memo, i) => (
             <MemoRow
               key={memo.id}

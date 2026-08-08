@@ -19,7 +19,7 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
     chords.setRevealedId(null);
   }, [chords]);
 
-  const { listRef, begin, dragIndex, dy, liftFor } = useReorder(commit, prepare);
+  const { listRef, begin, dragIndex, dy, liftFor, settling } = useReorder(commit, prepare);
   const count = sections.length;
 
   return (
@@ -45,7 +45,7 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
           </p>
         </div>
       ) : (
-        <ul className="sects" ref={listRef}>
+        <ul className={`sects${settling ? ' is-settling' : ''}`} ref={listRef}>
           {sections.map((section, i) => (
             <SectionRow
               key={section.id}

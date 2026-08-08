@@ -188,6 +188,21 @@ input {
   flex-direction: column;
 }
 
+/*
+ * The list ends where the keyboard begins, like the chord picker. Without this
+ * iOS lifts the whole page to reveal the search field and takes the title and
+ * the first rows off the top of the screen with it.
+ */
+.songs {
+  bottom: var(--kb, 0px);
+}
+
+/* Gone the instant a song is tapped, so nothing of this screen is left sitting
+   over the one arriving. */
+.navbar__slot.is-going {
+  visibility: hidden;
+}
+
 /* ------------------------------------------------------------------ nav bar --
  * Sits over the list. Its backdrop is the list's top edge treatment: a blur
  * that fades out downward (masked) with a black wash over it, so rows dissolve
@@ -226,7 +241,14 @@ input {
 .navbar__slot {
   flex: 1 1 0;
   display: flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
+}
+
+/* Icon buttons keep their size; it is the label beside them that gives way. */
+.navbar__slot .iconbtn {
+  flex: 0 0 auto;
 }
 
 .navbar__slot--end {
@@ -1234,6 +1256,9 @@ input {
      that read as a blank line you could put the caret in by mistake. */
   padding: 14px calc(var(--text-edge) + var(--safe-r)) 28px
     calc(var(--text-edge) + var(--safe-l));
+  /* The page is the whole rest of the sheet, not just the lines written on it,
+     so tapping the blank part below the last line starts writing there too. */
+  flex: 1 1 auto;
   outline: none;
   cursor: text;
   user-select: text;
@@ -1623,6 +1648,17 @@ input {
 
 .memo.is-dragging {
   z-index: 5;
+  transition: none;
+}
+
+/*
+ * Just dropped. Every offset is cleared at once when the finger lifts, and
+ * with transitions on, the rows would slide back to where they started a
+ * moment before the new order arrives and moves them again. It should land
+ * where it was put, so this stretch is not animated at all.
+ */
+.memos.is-settling .memo,
+.sects.is-settling .sect {
   transition: none;
 }
 
@@ -2445,7 +2481,89 @@ input {
   justify-content: space-between;
 }
 
+/* ========================================================= recently deleted ==
+ * Where thrown-away songs wait. The one screen in the app that really deletes
+ * anything, so nothing here happens on a single tap: songs are picked first,
+ * then restored or destroyed together.
+ */
+
+.trash {
+  --nav-h: 52px;
+  --dock-h: 80px;
+  background: var(--bg);
+  z-index: 60;
+  animation: screen-in-right var(--screen-ms) var(--ease) backwards;
+}
+
+.trash.is-leaving {
+  animation: screen-out-right var(--screen-ms) var(--ease) forwards;
+}
+
+.trash__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trash__row {
+  position: relative;
+}
+
+.trash__pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 62px;
+  padding: 10px calc(var(--text-edge) + var(--safe-r)) 10px
+    calc(var(--edge) + var(--safe-l));
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.trash__row + .trash__row .trash__pick::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: calc(var(--text-edge) + var(--safe-l));
+  right: 12px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.trash__check {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  color: var(--text);
+}
+
+.trash__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.trash__name {
+  font-size: var(--fs-row);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash__meta {
+  font-size: var(--fs-meta);
+  color: var(--text-2);
+}
+
 /* Anchored under the button it came from, like the editor's. */
+.menu__panel--list {
+  top: calc(var(--safe-t) + var(--nav-h) - 2px);
+}
+
 .menu__panel--picker {
   top: calc(var(--safe-t) + var(--nav-h) - 4px);
   min-width: 200px;

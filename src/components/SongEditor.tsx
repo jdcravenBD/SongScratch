@@ -11,11 +11,9 @@ import {
   type BlockKind,
 } from '../lib/lyrics';
 import { newId } from '../lib/id';
-import { useEdgeBack } from '../hooks/useEdgeBack';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useVoiceMemos } from '../hooks/useVoiceMemos';
 import { useChordSections } from '../hooks/useChordSections';
-import { deleteMemosForSong } from '../db/memos';
 import ScrollArea from './ScrollArea';
 import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
@@ -53,8 +51,7 @@ interface Props {
   /** True while this screen is sliding back off to the right. */
   leaving?: boolean;
   onBack: () => void;
-  /** Leave without the animation — for the edge swipe, which is its own. */
-  onDismiss?: () => void;
+  onTrash: () => void;
 }
 
 /**
@@ -63,7 +60,7 @@ interface Props {
  * switcher) and whether the page is being edited, since that decides between
  * the Edit button and the format bar at the bottom.
  */
-export default function SongEditor({ id, leaving, onBack, onDismiss }: Props) {
+export default function SongEditor({ id, leaving, onBack, onTrash }: Props) {
   const [song, setSong] = useState<Song | null>(null);
   // Lyrics is the tab a song opens on.
   const [tab, setTab] = useState<Tab>('lyrics');
@@ -88,10 +85,6 @@ export default function SongEditor({ id, leaving, onBack, onDismiss }: Props) {
   const keyboardInset = useKeyboardInset();
   const voice = useVoiceMemos(id, tab === 'voice');
   const chords = useChordSections(id, tab === 'chords');
-
-  // Swipe in from the left edge to leave, as the system apps do. Not while the
-  // page is being written on, where a drag has to mean "select".
-  const screenRef = useEdgeBack(onDismiss ?? onBack, !editing);
 
   useEffect(() => () => window.clearTimeout(pickerTimer.current), []);
 
@@ -227,7 +220,6 @@ export default function SongEditor({ id, leaving, onBack, onDismiss }: Props) {
   return (
     <>
     <div
-      ref={screenRef}
       className={`screen editor${leaving ? ' is-leaving' : ''}${
         editing ? ' is-editing' : ''
       }${tab === 'voice' ? ' is-voice' : ''}${tab === 'chords' ? ' is-chords' : ''}`}
@@ -433,14 +425,25 @@ export default function SongEditor({ id, leaving, onBack, onDismiss }: Props) {
               <span>Duplicate Song</span>
             </button>
             <button
+              className="menu__item"
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onTrash();
+              }}
+            >
+              <TrashIcon />
+              <span>Recently Deleted</span>
+            </button>
+            <button
               className="menu__item menu__item--danger"
               type="button"
               onClick={async () => {
                 // Drop the pending write first, or it would resurrect the song.
                 window.clearTimeout(saveTimer.current);
                 pending.current = null;
-                // Recordings must not outlive the song they belong to.
-                await deleteMemosForSong(song.id);
+                // Thrown away rather than destroyed — recordings included, so
+                // restoring it out of Recently Deleted brings back all of it.
                 await deleteSongs([song.id]);
                 setMenuOpen(false);
                 onBack();
@@ -479,7 +482,6 @@ export default function SongEditor({ id, leaving, onBack, onDismiss }: Props) {
         initial={chords.picking.chord}
         leaving={pickerLeaving}
         onCancel={() => closePicker(chords.cancelPick)}
-        onDismiss={chords.cancelPick}
         onConfirm={(chord) => closePicker(() => void chords.savePick(chord))}
       />
     )}

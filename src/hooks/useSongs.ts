@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Song } from '../types';
 import { newId } from '../lib/id';
-import { deleteMemosForSong } from '../db/memos';
 import {
   countSongs,
   deleteSongs as dbDelete,
@@ -137,12 +136,20 @@ export interface SongsApi {
   setPinned: (ids: string[], pinned?: boolean) => Promise<void>;
 }
 
-export function useSongs(): SongsApi {
+/** `refreshKey` changes when something outside this list has changed one of
+    its songs — a restore out of Recently Deleted, for instance. */
+export function useSongs(refreshKey = 0): SongsApi {
   const [songs, setSongs] = useState<Song[] | null>(null);
 
   const refresh = useCallback(async () => {
     setSongs(await getAllSongs());
   }, []);
+
+  // Not on the first pass: the load below already reads the store, and the old
+  // list stays on screen until the new one lands rather than blanking.
+  useEffect(() => {
+    if (refreshKey) void refresh();
+  }, [refreshKey, refresh]);
 
   useEffect(() => {
     let alive = true;
@@ -178,9 +185,8 @@ export function useSongs(): SongsApi {
 
   const deleteSongs = useCallback(
     async (ids: string[]) => {
-      // Recordings must not outlive the song they belong to, or they sit in
-      // storage forever with nothing able to reach them.
-      await Promise.all(ids.map(deleteMemosForSong));
+      // Thrown away, not destroyed — they go to Recently Deleted, recordings
+      // and all, and are only really gone once they age out of it.
       await dbDelete(ids);
       await refresh();
     },

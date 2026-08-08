@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSongs } from '../hooks/useSongs';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { groupSongs } from '../lib/format';
 import ScrollArea from './ScrollArea';
 import SongRow from './SongRow';
@@ -8,6 +9,7 @@ import {
   CloseIcon,
   ComposeIcon,
   DuplicateIcon,
+  EllipsisIcon,
   PinIcon,
   SearchIcon,
   TrashIcon,
@@ -22,14 +24,31 @@ const COLLAPSE_TO = 52;
  * with search and a New Song button floating at the bottom and a Select mode
  * for acting on several at once.
  */
-export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
-  const { songs, createSong, deleteSongs, duplicateSongs, setPinned } = useSongs();
+interface Props {
+  onOpen: (id: string) => void;
+  onTrash: () => void;
+  /** Changes when something outside the list has changed its songs. */
+  refreshKey?: number;
+}
+
+export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
+  const { songs, createSong, deleteSongs, duplicateSongs, setPinned } = useSongs(refreshKey);
 
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openRowId, setOpenRowId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  /** A song is opening: this screen is on its way out from under it. */
+  const [leaving, setLeaving] = useState(false);
+
+  const keyboardInset = useKeyboardInset();
+
+  const openSong = (id: string) => {
+    setLeaving(true);
+    onOpen(id);
+  };
 
   const navRef = useRef<HTMLElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -99,7 +118,12 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
     : `${total} ${total === 1 ? 'Song' : 'Songs'}`;
 
   return (
-    <div className={`screen${selectMode ? ' is-selecting' : ''}`}>
+    /* --kb shortens the screen to sit above the keyboard, so searching moves
+       the field rather than shoving the whole list up past the top edge. */
+    <div
+      className={`screen songs${selectMode ? ' is-selecting' : ''}`}
+      style={{ '--kb': `${keyboardInset}px` } as React.CSSProperties}
+    >
       <header className="navbar" ref={navRef}>
         <div className="navbar__slot">
           {selectMode ? (
@@ -127,17 +151,30 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
           {!selectMode && <p className="navbar__count">{countLabel}</p>}
         </div>
 
-        <div className="navbar__slot navbar__slot--end">
+        {/* Everything on this side goes the moment a song is tapped: it would
+            otherwise be the one thing still sitting there while the screen it
+            belongs to slides away underneath the song. */}
+        <div className={`navbar__slot navbar__slot--end${leaving ? ' is-going' : ''}`}>
           {selectMode ? (
             <button className="chip chip--solid" type="button" onClick={exitSelect}>
               Done
             </button>
           ) : (
-            total > 0 && (
-              <button className="chip" type="button" onClick={() => enterSelect()}>
-                Select
+            <>
+              {total > 0 && (
+                <button className="chip" type="button" onClick={() => enterSelect()}>
+                  Select
+                </button>
+              )}
+              <button
+                className="iconbtn"
+                type="button"
+                aria-label="More actions"
+                onClick={() => setMenuOpen(true)}
+              >
+                <EllipsisIcon />
               </button>
-            )
+            </>
           )}
         </div>
       </header>
@@ -172,7 +209,7 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
                     selectMode={selectMode}
                     selected={selected.has(song.id)}
                     forceClosed={openRowId !== null && openRowId !== song.id}
-                    onOpen={onOpen}
+                    onOpen={openSong}
                     onToggleSelect={toggle}
                     onDelete={(id) => {
                       setOpenRowId(null);
@@ -197,7 +234,7 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
                   selectMode={selectMode}
                   selected={selected.has(song.id)}
                   forceClosed={openRowId !== null && openRowId !== song.id}
-                  onOpen={onOpen}
+                  onOpen={openSong}
                   onToggleSelect={toggle}
                   onDelete={(id) => {
                     setOpenRowId(null);
@@ -298,6 +335,30 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
           </div>
         )}
       </div>
+
+      {menuOpen && (
+        <div className="menu" role="dialog" aria-label="Song list actions">
+          <button
+            className="menu__scrim"
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="menu__panel menu__panel--list">
+            <button
+              className="menu__item"
+              type="button"
+              onClick={() => {
+                setMenuOpen(false);
+                onTrash();
+              }}
+            >
+              <TrashIcon />
+              <span>Recently Deleted</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -22,7 +22,18 @@ export interface Reorder {
   dy: number;
   /** How far a row that isn't being dragged should step aside. */
   liftFor: (index: number) => number;
+  /**
+   * True for a moment after a drop. Put it on the list as a class that turns
+   * the rows' transitions off — see the note in `finish`.
+   */
+  settling: boolean;
 }
+
+/**
+ * How long transitions stay off after a drop: long enough to cover the write
+ * to the store and the re-render that brings the new order back.
+ */
+const SETTLE_MS = 260;
 
 /**
  * Drag-to-reorder for a list of rows.
@@ -45,6 +56,10 @@ export function useReorder(
   const [dragIndex, setDragIndex] = useState(-1);
   const [target, setTarget] = useState(-1);
   const [dy, setDy] = useState(0);
+  const [settling, setSettling] = useState(false);
+  const settleTimer = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(settleTimer.current), []);
 
   const begin = useCallback(
     (index: number, startY: number) => {
@@ -105,6 +120,16 @@ export function useReorder(
     const finish = () => {
       const state = drag.current;
       drag.current = null;
+      /*
+       * Transitions off for a moment. Letting go clears every offset at once,
+       * and the rows would animate from where the drag had put them back to
+       * where they started — the dragged one flying home just before the new
+       * order arrives and puts it where the finger left it. It should simply
+       * be where it was dropped, so the tidying-up is not animated at all.
+       */
+      setSettling(true);
+      window.clearTimeout(settleTimer.current);
+      settleTimer.current = window.setTimeout(() => setSettling(false), SETTLE_MS);
       setDragIndex(-1);
       setDy(0);
       if (state) {
@@ -137,5 +162,5 @@ export function useReorder(
     [dragIndex, target],
   );
 
-  return { listRef, begin, dragIndex, dy, liftFor };
+  return { listRef, begin, dragIndex, dy, liftFor, settling };
 }

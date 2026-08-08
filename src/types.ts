@@ -33,6 +33,12 @@ export interface Song {
   lyrics?: string;
   /** The chord tab's sections, in the order the song plays them. */
   chordSections?: ChordSection[];
+  /**
+   * When it was thrown away, if it was. A deleted song is kept, hidden from
+   * the list, until it is either restored or ages out of Recently Deleted —
+   * so nothing a user has written is destroyed by a single tap.
+   */
+  deletedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

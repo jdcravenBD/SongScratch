@@ -10,6 +10,8 @@ const LONG_MS = 450;
 /** Movement that cancels a hold, and movement that starts a drag. */
 const SLOP = 8;
 const DRAG_FROM = 4;
+/** How long transitions stay off after a drop — see `release`. */
+const SETTLE_MS = 260;
 
 interface Props {
   section: ChordSection;
@@ -52,6 +54,9 @@ export default function SectionChords({
   const hold = useRef({ x: 0, y: 0, id: -1, timer: 0 });
   /** Which chord that press is on, so a tap can put its menu against it. */
   const anchor = useRef<{ el: HTMLElement; chord: Chord } | null>(null);
+  const settle = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(settle.current), []);
   const drag = useRef<{
     id: number;
     from: number;
@@ -94,15 +99,27 @@ export default function SectionChords({
     }
   };
 
-  /** Puts every tile back where the DOM says it belongs. */
+  /**
+   * Puts every tile back where the DOM says it belongs.
+   *
+   * With the transition off, deliberately. Clearing the offsets would otherwise
+   * animate each tile from where the drag had put it back to where it started,
+   * a moment before the new order arrives and moves it again — a chord should
+   * simply be where it was dropped. Restored on a timer that comfortably
+   * outlasts the write to the store.
+   */
   const release = () => {
     for (const el of tiles()) {
-      el.style.transition = '';
+      el.style.transition = 'none';
       el.style.transform = '';
       el.style.zIndex = '';
       el.classList.remove('is-lifted');
     }
     drag.current = null;
+    window.clearTimeout(settle.current);
+    settle.current = window.setTimeout(() => {
+      for (const el of tiles()) el.style.transition = '';
+    }, SETTLE_MS);
   };
 
   /** Draws the run as it stands mid-drag: one tile under the finger, the rest
