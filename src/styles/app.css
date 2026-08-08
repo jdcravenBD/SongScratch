@@ -197,10 +197,26 @@ input {
   bottom: var(--kb, 0px);
 }
 
-/* Gone the instant a song is tapped, so nothing of this screen is left sitting
-   over the one arriving. */
-.navbar__slot.is-going {
-  visibility: hidden;
+/*
+ * The list stands aside as a song comes in over it and follows it back out —
+ * the two screens move together, so the song looks like it came from the list
+ * rather than landing on top of a page that never noticed.
+ */
+.songs.is-standing-aside {
+  animation: list-aside var(--screen-ms) var(--ease) forwards;
+}
+
+.songs.is-returning {
+  animation: list-aside var(--screen-ms) var(--ease) reverse backwards;
+}
+
+@keyframes list-aside {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(-28%);
+  }
 }
 
 /* ------------------------------------------------------------------ nav bar --

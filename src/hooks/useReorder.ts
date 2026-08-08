@@ -55,6 +55,8 @@ export function useReorder(
   const drag = useRef<Drag | null>(null);
   const [dragIndex, setDragIndex] = useState(-1);
   const [target, setTarget] = useState(-1);
+  /** The same number as `target`, readable outside a render. */
+  const targetRef = useRef(-1);
   const [dy, setDy] = useState(0);
   const [settling, setSettling] = useState(false);
   const settleTimer = useRef(0);
@@ -83,6 +85,7 @@ export function useReorder(
             }),
           };
           setDragIndex(index);
+          targetRef.current = index;
           setTarget(index);
           setDy(0);
         });
@@ -114,7 +117,9 @@ export function useReorder(
        */
       const step = state.rects[state.index].height || 1;
       const moved = Math.round(offset / step);
-      setTarget(Math.max(0, Math.min(state.rects.length - 1, state.index + moved)));
+      const to = Math.max(0, Math.min(state.rects.length - 1, state.index + moved));
+      targetRef.current = to;
+      setTarget(to);
     };
 
     const finish = () => {
@@ -132,12 +137,16 @@ export function useReorder(
       settleTimer.current = window.setTimeout(() => setSettling(false), SETTLE_MS);
       setDragIndex(-1);
       setDy(0);
-      if (state) {
-        setTarget((to) => {
-          if (to !== state.index) onCommit(state.index, to);
-          return -1;
-        });
-      }
+      /*
+       * Committed from a ref, not from inside a state updater. An updater has
+       * to be pure — React is free to run it more than once, and in
+       * development it does, which called this twice and applied the move
+       * twice. The list then flicked through an order nobody had asked for
+       * before settling.
+       */
+      const to = targetRef.current;
+      setTarget(-1);
+      if (state && to !== state.index) onCommit(state.index, to);
     };
 
     window.addEventListener('pointermove', onMove, { passive: false });

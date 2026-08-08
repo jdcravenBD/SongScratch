@@ -75,7 +75,12 @@ export interface ChordSections {
  * component state: the lyric tab is saving to the same record on its own timer,
  * and a stale snapshot here would quietly undo whatever it had just written.
  */
-export function useChordSections(songId: string, enabled: boolean): ChordSections {
+export function useChordSections(
+  songId: string,
+  enabled: boolean,
+  /** Changes when something outside this tab has changed its sections. */
+  refreshKey = 0,
+): ChordSections {
   const [sections, setSections] = useState<ChordSection[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [revealedId, setRevealedId] = useState<string | null>(null);
@@ -92,19 +97,34 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
 
   useEffect(() => {
     if (enabled) void refresh();
-  }, [enabled, refresh]);
+  }, [enabled, refresh, refreshKey]);
 
-  /** Apply a change to the song's sections and write it back. */
+  /**
+   * Apply a change to the song's sections and write it back.
+   *
+   * `trashed` is anything the change removed that should be kept — deleting a
+   * section moves it to the song's own Recently Deleted rather than destroying
+   * it, and this is the one place that transfer happens.
+   */
   const commit = useCallback(
-    async (change: (current: ChordSection[]) => ChordSection[]) => {
+    async (
+      change: (current: ChordSection[]) => ChordSection[],
+      trashed?: (current: ChordSection[]) => ChordSection[],
+    ) => {
       const song = await getSong(songId);
       if (!song) return;
-      const next = change(song.chordSections ?? []);
+      const current = song.chordSections ?? [];
+      const next = change(current);
+      const gone = trashed?.(current) ?? [];
+      const now = Date.now();
       const updated: Song = {
         ...song,
         chordSections: next,
+        deletedSections: gone.length
+          ? [...gone.map((s) => ({ ...s, deletedAt: now })), ...(song.deletedSections ?? [])]
+          : song.deletedSections,
         chordCount: next.reduce((n, s) => n + s.chords.length, 0),
-        updatedAt: Date.now(),
+        updatedAt: now,
       };
       await putSong(updated);
       setSections(next);
@@ -124,39 +144,40 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit],
   );
 
-  const remove = useCallback(
-    async (id: string) => {
-      setExpandedId((cur) => (cur === id ? null : cur));
-      setRevealedId(null);
-      await commit((current) => current.filter((s) => s.id !== id));
-    },
-    [commit],
-  );
-
   const removeMany = useCallback(
     async (ids: string[]) => {
       setExpandedId((cur) => (cur && ids.includes(cur) ? null : cur));
       setRevealedId(null);
-      await commit((current) => current.filter((s) => !ids.includes(s.id)));
+      await commit(
+        (current) => current.filter((s) => !ids.includes(s.id)),
+        (current) => current.filter((s) => ids.includes(s.id)),
+      );
     },
     [commit],
   );
 
+  const remove = useCallback((id: string) => removeMany([id]), [removeMany]);
+
   const clearAll = useCallback(async () => {
     setExpandedId(null);
     setRevealedId(null);
-    await commit(() => []);
+    await commit(
+      () => [],
+      (current) => current,
+    );
   }, [commit]);
 
   const reorder = useCallback(
-    (from: number, to: number) =>
-      commit((current) => {
-        if (from === to || from < 0 || from >= current.length) return current;
-        const next = [...current];
-        const [moved] = next.splice(from, 1);
-        next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
-        return next;
-      }),
+    (from: number, to: number) => {
+      /*
+       * Moved on screen first, written second. Waiting for the store leaves a
+       * frame or two of the *old* order showing after the finger has let go —
+       * the row appears to fly back to where it came from and then land, which
+       * is the one thing a drag must never do.
+       */
+      setSections((cur) => moveWithin(cur, from, to));
+      return commit((current) => moveWithin(current, from, to));
+    },
     [commit],
   );
 
@@ -185,18 +206,15 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
   );
 
   const reorderChords = useCallback(
-    (sectionId: string, from: number, to: number) =>
-      commit((current) =>
-        current.map((s) => {
-          if (s.id !== sectionId || from === to || from < 0 || from >= s.chords.length) {
-            return s;
-          }
-          const chords = [...s.chords];
-          const [moved] = chords.splice(from, 1);
-          chords.splice(Math.max(0, Math.min(chords.length, to)), 0, moved);
-          return { ...s, chords };
-        }),
-      ),
+    (sectionId: string, from: number, to: number) => {
+      const move = (list: ChordSection[]) =>
+        list.map((s) =>
+          s.id === sectionId ? { ...s, chords: moveWithin(s.chords, from, to) } : s,
+        );
+      // On screen first, as above — a chord must stay where it was dropped.
+      setSections(move);
+      return commit(move);
+    },
     [commit],
   );
 
@@ -273,6 +291,15 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     revealedId,
     setRevealedId,
   };
+}
+
+/** One item lifted out and put back down somewhere else in the same list. */
+function moveWithin<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || from >= list.length) return list;
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
+  return next;
 }
 
 /**

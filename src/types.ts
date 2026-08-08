@@ -34,6 +34,12 @@ export interface Song {
   /** The chord tab's sections, in the order the song plays them. */
   chordSections?: ChordSection[];
   /**
+   * Sections thrown away, waiting in Recently Deleted. Kept apart from the
+   * live ones rather than flagged among them, so every index the chord tab
+   * works in — reordering especially — still means what it says.
+   */
+  deletedSections?: ChordSection[];
+  /**
    * When it was thrown away, if it was. A deleted song is kept, hidden from
    * the list, until it is either restored or ages out of Recently Deleted —
    * so nothing a user has written is destroyed by a single tap.
@@ -71,6 +77,8 @@ export interface ChordSection {
   id: string;
   name: string;
   chords: Chord[];
+  /** Set while it waits in Recently Deleted. */
+  deletedAt?: number;
 }
 
 /**
@@ -99,6 +107,8 @@ export interface Memo {
   name: string;
   /** Where the user dragged it to. Absent on memos made before ordering. */
   order?: number;
+  /** Set while it waits in Recently Deleted. */
+  deletedAt?: number;
   mimeType: string;
   segments: Segment[];
   createdAt: number;

@@ -3,7 +3,7 @@ import { purgeExpired } from './db/songs';
 import DeviceChrome from './components/DeviceChrome';
 import SongList from './components/SongList';
 import SongEditor from './components/SongEditor';
-import TrashScreen from './components/TrashScreen';
+import TrashScreen, { type TrashTarget } from './components/TrashScreen';
 
 /** How long a screen takes to arrive or leave. Matches --screen-ms in the CSS. */
 const SCREEN_MS = 280;
@@ -27,9 +27,10 @@ export default function App() {
   const [closingId, setClosingId] = useState<string | null>(null);
   /** True while it is sliding in, which is what keeps the list behind it. */
   const [entering, setEntering] = useState(false);
-  const [trash, setTrash] = useState(false);
+  /** Which Recently Deleted is open, if any — songs, or one song's own. */
+  const [trash, setTrash] = useState<TrashTarget | null>(null);
   const [trashLeaving, setTrashLeaving] = useState(false);
-  /** Bumped when the list's songs have changed from outside it. */
+  /** Bumped when something underneath has changed from outside it. */
   const [listEpoch, setListEpoch] = useState(0);
   const timer = useRef(0);
   const trashTimer = useRef(0);
@@ -64,7 +65,7 @@ export default function App() {
     setTrashLeaving(true);
     window.clearTimeout(trashTimer.current);
     trashTimer.current = window.setTimeout(() => {
-      setTrash(false);
+      setTrash(null);
       setTrashLeaving(false);
       // Whatever is underneath may be out of date now — a song could have come
       // back from the dead while this was open.
@@ -77,19 +78,26 @@ export default function App() {
   return (
     <div className="app">
       {(openId === null || entering) && (
-        <SongList refreshKey={listEpoch} onOpen={open} onTrash={() => setTrash(true)} />
+        <SongList
+          refreshKey={listEpoch}
+          shift={entering ? 'out' : closingId ? 'back' : null}
+          onOpen={open}
+          onTrash={() => setTrash({ kind: 'songs' })}
+        />
       )}
       {showing && (
         <SongEditor
           key={showing}
           id={showing}
           leaving={openId === null}
+          refreshKey={listEpoch}
           onBack={back}
-          onTrash={() => setTrash(true)}
+          onTrash={(kind) => setTrash({ kind, songId: showing })}
         />
       )}
       {trash && (
         <TrashScreen
+          target={trash}
           leaving={trashLeaving}
           onBack={closeTrash}
           onRestored={() => setListEpoch((n) => n + 1)}

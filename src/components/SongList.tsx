@@ -29,9 +29,14 @@ interface Props {
   onTrash: () => void;
   /** Changes when something outside the list has changed its songs. */
   refreshKey?: number;
+  /**
+   * Which way this screen is travelling while a song is opened over it: out to
+   * the left as one arrives, or back from the left as one leaves.
+   */
+  shift?: 'out' | 'back' | null;
 }
 
-export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
+export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) {
   const { songs, createSong, deleteSongs, duplicateSongs, setPinned } = useSongs(refreshKey);
 
   const [query, setQuery] = useState('');
@@ -40,15 +45,8 @@ export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  /** A song is opening: this screen is on its way out from under it. */
-  const [leaving, setLeaving] = useState(false);
 
   const keyboardInset = useKeyboardInset();
-
-  const openSong = (id: string) => {
-    setLeaving(true);
-    onOpen(id);
-  };
 
   const navRef = useRef<HTMLElement>(null);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -121,7 +119,9 @@ export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
     /* --kb shortens the screen to sit above the keyboard, so searching moves
        the field rather than shoving the whole list up past the top edge. */
     <div
-      className={`screen songs${selectMode ? ' is-selecting' : ''}`}
+      className={`screen songs${selectMode ? ' is-selecting' : ''}${
+        shift === 'out' ? ' is-standing-aside' : shift === 'back' ? ' is-returning' : ''
+      }`}
       style={{ '--kb': `${keyboardInset}px` } as React.CSSProperties}
     >
       <header className="navbar" ref={navRef}>
@@ -151,10 +151,7 @@ export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
           {!selectMode && <p className="navbar__count">{countLabel}</p>}
         </div>
 
-        {/* Everything on this side goes the moment a song is tapped: it would
-            otherwise be the one thing still sitting there while the screen it
-            belongs to slides away underneath the song. */}
-        <div className={`navbar__slot navbar__slot--end${leaving ? ' is-going' : ''}`}>
+        <div className="navbar__slot navbar__slot--end">
           {selectMode ? (
             <button className="chip chip--solid" type="button" onClick={exitSelect}>
               Done
@@ -209,7 +206,7 @@ export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
                     selectMode={selectMode}
                     selected={selected.has(song.id)}
                     forceClosed={openRowId !== null && openRowId !== song.id}
-                    onOpen={openSong}
+                    onOpen={onOpen}
                     onToggleSelect={toggle}
                     onDelete={(id) => {
                       setOpenRowId(null);
@@ -234,7 +231,7 @@ export default function SongList({ onOpen, onTrash, refreshKey }: Props) {
                   selectMode={selectMode}
                   selected={selected.has(song.id)}
                   forceClosed={openRowId !== null && openRowId !== song.id}
-                  onOpen={openSong}
+                  onOpen={onOpen}
                   onToggleSelect={toggle}
                   onDelete={(id) => {
                     setOpenRowId(null);

@@ -50,8 +50,11 @@ interface Props {
   id: string;
   /** True while this screen is sliding back off to the right. */
   leaving?: boolean;
+  /** Changes when something outside the editor has changed this song. */
+  refreshKey?: number;
   onBack: () => void;
-  onTrash: () => void;
+  /** Opens Recently Deleted for whichever tab asked for it. */
+  onTrash: (kind: 'sections' | 'memos') => void;
 }
 
 /**
@@ -60,7 +63,7 @@ interface Props {
  * switcher) and whether the page is being edited, since that decides between
  * the Edit button and the format bar at the bottom.
  */
-export default function SongEditor({ id, leaving, onBack, onTrash }: Props) {
+export default function SongEditor({ id, leaving, refreshKey, onBack, onTrash }: Props) {
   const [song, setSong] = useState<Song | null>(null);
   // Lyrics is the tab a song opens on.
   const [tab, setTab] = useState<Tab>('lyrics');
@@ -83,8 +86,8 @@ export default function SongEditor({ id, leaving, onBack, onTrash }: Props) {
   /** Same for the title, which saves on its own. */
   const pendingTitle = useRef<string | null>(null);
   const keyboardInset = useKeyboardInset();
-  const voice = useVoiceMemos(id, tab === 'voice');
-  const chords = useChordSections(id, tab === 'chords');
+  const voice = useVoiceMemos(id, tab === 'voice', refreshKey);
+  const chords = useChordSections(id, tab === 'chords', refreshKey);
 
   useEffect(() => () => window.clearTimeout(pickerTimer.current), []);
 
@@ -424,12 +427,16 @@ export default function SongEditor({ id, leaving, onBack, onTrash }: Props) {
               <DuplicateIcon />
               <span>Duplicate Song</span>
             </button>
+            {/* Per tab, like everything above it: the sections you deleted, or
+                the recordings. The page has no rows to have deleted, so it is
+                offered and plainly not available. */}
             <button
               className="menu__item"
               type="button"
+              disabled={tab === 'lyrics'}
               onClick={() => {
                 setMenuOpen(false);
-                onTrash();
+                onTrash(tab === 'voice' ? 'memos' : 'sections');
               }}
             >
               <TrashIcon />

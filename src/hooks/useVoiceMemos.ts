@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Memo } from '../types';
-import { deleteMemo, getMemos, putMemo } from '../db/memos';
+import { getMemos, putMemo, trashMemos } from '../db/memos';
 import { getSong, putSong } from '../db/songs';
 import { newId } from '../lib/id';
 import { useRecorder, type Recorder } from './useRecorder';
@@ -29,6 +29,15 @@ export interface VoiceMemos {
   enterSelect: (id?: string) => void;
   exitSelect: () => void;
   toggleSelect: (id: string) => void;
+}
+
+/** One item lifted out and put back down somewhere else in the same list. */
+function moveWithin<T>(list: T[], from: number, to: number): T[] {
+  if (from === to || from < 0 || from >= list.length) return list;
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
+  return next;
 }
 
 /**
@@ -65,7 +74,12 @@ function nextUntitled(existing: Memo[]): string {
  * both capture a take and then decide where it lands, which is what keeps
  * "add to this one" from being a special case all the way down.
  */
-export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
+export function useVoiceMemos(
+  songId: string,
+  enabled: boolean,
+  /** Changes when something outside this tab has changed its memos. */
+  refreshKey = 0,
+): VoiceMemos {
   const [memos, setMemos] = useState<Memo[]>([]);
   const [appendingTo, setAppendingTo] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -90,7 +104,7 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
   // the user is writing lyrics.
   useEffect(() => {
     if (enabled) void refresh();
-  }, [enabled, refresh]);
+  }, [enabled, refresh, refreshKey]);
 
   const startNew = useCallback(() => {
     setAppendingTo(null);
@@ -162,7 +176,9 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
 
   const removeMany = useCallback(
     async (ids: string[]) => {
-      await Promise.all(ids.map(deleteMemo));
+      // Thrown away rather than destroyed: they wait in this song's Recently
+      // Deleted, audio and all, until they are restored or their term is up.
+      await trashMemos(ids);
       setExpandedId((cur) => (cur && ids.includes(cur) ? null : cur));
       setRevealedId(null);
       await refresh();
@@ -175,10 +191,15 @@ export function useVoiceMemos(songId: string, enabled: boolean): VoiceMemos {
   const reorder = useCallback(
     async (from: number, to: number) => {
       if (from === to) return;
+      /*
+       * Moved on screen first, written second. Waiting for the store leaves a
+       * frame or two of the *old* order showing after the finger has let go —
+       * the row appears to fly back to where it came from and then land, which
+       * is the one thing a drag must never do.
+       */
+      setMemos((cur) => moveWithin(cur, from, to));
       const all = order(await getMemos(songId));
-      const next = [...all];
-      const [moved] = next.splice(from, 1);
-      next.splice(Math.max(0, Math.min(next.length, to)), 0, moved);
+      const next = moveWithin(all, from, to);
       // Renumber the lot: positions only mean anything relative to each other.
       await Promise.all(next.map((m, i) => putMemo({ ...m, order: i })));
       await refresh();

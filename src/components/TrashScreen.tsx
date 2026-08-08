@@ -1,12 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Song } from '../types';
-import { getDeletedSongs, purgeSongs, restoreSongs, TRASH_DAYS } from '../db/songs';
+import {
+  getDeletedSections,
+  getDeletedSongs,
+  purgeSections,
+  purgeSongs,
+  restoreSections,
+  restoreSongs,
+  TRASH_DAYS,
+} from '../db/songs';
+import { getDeletedMemos, purgeMemos, restoreMemos } from '../db/memos';
 import ScrollArea from './ScrollArea';
 import { BackIcon, SelectDot, TrashIcon } from './icons';
 
 const DAY = 86_400_000;
 
+/** Which of the three lists this is standing in for. */
+export type TrashKind = 'songs' | 'sections' | 'memos';
+
+export interface TrashTarget {
+  kind: TrashKind;
+  /** The song whose sections or memos these are. Not needed for songs. */
+  songId?: string;
+}
+
 interface Props {
+  target: TrashTarget;
   /** True while the screen is sliding back off to the right. */
   leaving?: boolean;
   onBack: () => void;
@@ -14,26 +32,73 @@ interface Props {
   onRestored: () => void;
 }
 
+/** What each kind is called, and how to move it about. */
+const UNIT: Record<TrashKind, [one: string, many: string]> = {
+  songs: ['Song', 'Songs'],
+  sections: ['Section', 'Sections'],
+  memos: ['Memo', 'Memos'],
+};
+
+interface Item {
+  id: string;
+  name: string;
+  deletedAt?: number;
+}
+
 /**
- * Where thrown-away songs wait.
+ * Where thrown-away things wait.
  *
- * Deleting a song anywhere in the app sends it here rather than destroying it,
- * and it stays for a month. This screen is the only place anything is really
- * deleted, so it is deliberately a picking screen — nothing happens to a song
- * from a single tap, the way it does in the list.
+ * Deleting anything in the app sends it here rather than destroying it, and it
+ * stays for a month. Each list has its own: the ellipsis you opened decides
+ * whether this is holding songs, one song's sections, or its recordings.
+ *
+ * This is the only place anything is really deleted, so it is deliberately a
+ * picking screen — nothing happens to an item from a single tap, the way it
+ * does in the lists it stands behind.
  */
-export default function TrashScreen({ leaving, onBack, onRestored }: Props) {
-  const [songs, setSongs] = useState<Song[] | null>(null);
+export default function TrashScreen({ target, leaving, onBack, onRestored }: Props) {
+  const { kind, songId } = target;
+  const [items, setItems] = useState<Item[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
-    setSongs(await getDeletedSongs());
+    const found: Item[] =
+      kind === 'songs'
+        ? (await getDeletedSongs()).map((s) => ({
+            id: s.id,
+            name: s.title || 'New Song',
+            deletedAt: s.deletedAt,
+          }))
+        : kind === 'sections'
+          ? (await getDeletedSections(songId ?? '')).map((s) => ({
+              id: s.id,
+              name: s.name,
+              deletedAt: s.deletedAt,
+            }))
+          : (await getDeletedMemos(songId ?? '')).map((m) => ({
+              id: m.id,
+              name: m.name,
+              deletedAt: m.deletedAt,
+            }));
+    setItems(found);
     setSelected(new Set());
-  }, []);
+  }, [kind, songId]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const restore = async (ids: string[]) => {
+    if (kind === 'songs') await restoreSongs(ids);
+    else if (kind === 'sections') await restoreSections(songId ?? '', ids);
+    else await restoreMemos(ids);
+  };
+
+  const purge = async (ids: string[]) => {
+    if (kind === 'songs') await purgeSongs(ids);
+    else if (kind === 'sections') await purgeSections(songId ?? '', ids);
+    else await purgeMemos(ids);
+  };
 
   const toggle = (id: string) =>
     setSelected((prev) => {
@@ -43,9 +108,10 @@ export default function TrashScreen({ leaving, onBack, onRestored }: Props) {
     });
 
   const ids = [...selected];
-  const count = songs?.length ?? 0;
+  const count = items?.length ?? 0;
   const picked = ids.length;
   const all = count > 0 && picked === count;
+  const [one, many] = UNIT[kind];
 
   return (
     <div className={`screen trash${leaving ? ' is-leaving' : ''}`}>
@@ -59,7 +125,7 @@ export default function TrashScreen({ leaving, onBack, onRestored }: Props) {
             <button
               className="chip"
               type="button"
-              onClick={() => setSelected(all ? new Set() : new Set(songs?.map((s) => s.id)))}
+              onClick={() => setSelected(all ? new Set() : new Set(items?.map((i) => i.id)))}
             >
               {all ? 'Deselect All' : 'Select All'}
             </button>
@@ -71,33 +137,34 @@ export default function TrashScreen({ leaving, onBack, onRestored }: Props) {
         <div className="hero">
           <h1 className="hero__title">Recently Deleted</h1>
           <p className="hero__count">
-            {picked ? `${picked} Selected` : `${count} ${count === 1 ? 'Song' : 'Songs'}`}
+            {picked ? `${picked} Selected` : `${count} ${count === 1 ? one : many}`}
           </p>
         </div>
 
-        {songs === null ? null : count === 0 ? (
+        {items === null ? null : count === 0 ? (
           <div className="empty">
             <p className="empty__title">Nothing Here</p>
             <p className="empty__hint">
-              Deleted songs wait here for {TRASH_DAYS} days before they go for good.
+              Deleted {many.toLowerCase()} wait here for {TRASH_DAYS} days before they go
+              for good.
             </p>
           </div>
         ) : (
           <ul className="trash__list">
-            {songs.map((song) => (
-              <li className="trash__row" key={song.id}>
+            {items.map((item) => (
+              <li className="trash__row" key={item.id}>
                 <button
                   className="trash__pick"
                   type="button"
-                  aria-pressed={selected.has(song.id)}
-                  onClick={() => toggle(song.id)}
+                  aria-pressed={selected.has(item.id)}
+                  onClick={() => toggle(item.id)}
                 >
                   <span className="trash__check">
-                    <SelectDot on={selected.has(song.id)} />
+                    <SelectDot on={selected.has(item.id)} />
                   </span>
                   <span className="trash__text">
-                    <span className="trash__name">{song.title || 'New Song'}</span>
-                    <span className="trash__meta">{remaining(song.deletedAt)}</span>
+                    <span className="trash__name">{item.name}</span>
+                    <span className="trash__meta">{remaining(item.deletedAt)}</span>
                   </span>
                 </button>
               </li>
@@ -114,7 +181,7 @@ export default function TrashScreen({ leaving, onBack, onRestored }: Props) {
               type="button"
               disabled={!picked}
               onClick={async () => {
-                await restoreSongs(ids);
+                await restore(ids);
                 onRestored();
                 await refresh();
               }}
@@ -127,7 +194,7 @@ export default function TrashScreen({ leaving, onBack, onRestored }: Props) {
               type="button"
               disabled={!picked}
               onClick={async () => {
-                await purgeSongs(ids);
+                await purge(ids);
                 await refresh();
               }}
             >

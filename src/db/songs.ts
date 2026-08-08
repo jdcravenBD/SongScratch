@@ -8,9 +8,9 @@
  * The connection and schema live in ./open.
  */
 
-import type { Song } from '../types';
+import type { ChordSection, Song } from '../types';
 import { newId } from '../lib/id';
-import { deleteMemosForSong } from './memos';
+import { deleteMemosForSong, purgeExpiredMemos } from './memos';
 import { openDB, wrap, SONGS } from './open';
 
 /** How long a thrown-away song is kept before it goes for good. */
@@ -90,12 +90,66 @@ export async function purgeSongs(ids: string[]): Promise<void> {
   await Promise.all(ids.map((id) => wrap(store.delete(id))));
 }
 
+/* ------------------------------------------------------------- sections --
+ * A song's own Recently Deleted. Thrown-away sections move out of
+ * `chordSections` into `deletedSections` rather than being flagged in place,
+ * so every index the chord tab works in still means what it says.
+ */
+
+export async function getDeletedSections(songId: string): Promise<ChordSection[]> {
+  const song = await getSong(songId);
+  return [...(song?.deletedSections ?? [])].sort(
+    (a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0),
+  );
+}
+
+/** Back at the end of the run: it has no place to return to. */
+export async function restoreSections(songId: string, ids: string[]): Promise<void> {
+  const song = await getSong(songId);
+  if (!song) return;
+  const trash = song.deletedSections ?? [];
+  const back = trash
+    .filter((s) => ids.includes(s.id))
+    .map(({ deletedAt: _gone, ...rest }) => rest as ChordSection);
+  if (!back.length) return;
+  await putSong({
+    ...song,
+    chordSections: [...(song.chordSections ?? []), ...back],
+    deletedSections: trash.filter((s) => !ids.includes(s.id)),
+    chordCount:
+      (song.chordCount ?? 0) + back.reduce((n, s) => n + s.chords.length, 0),
+    updatedAt: Date.now(),
+  });
+}
+
+export async function purgeSections(songId: string, ids: string[]): Promise<void> {
+  const song = await getSong(songId);
+  if (!song) return;
+  await putSong({
+    ...song,
+    deletedSections: (song.deletedSections ?? []).filter((s) => !ids.includes(s.id)),
+  });
+}
+
 /** Anything that has sat in Recently Deleted for its full term. */
 export async function purgeExpired(): Promise<void> {
   const cutoff = Date.now() - TRASH_MS;
   const all = await readAll();
+
   const stale = all.filter((s) => s.deletedAt && s.deletedAt < cutoff).map((s) => s.id);
   if (stale.length) await purgeSongs(stale);
+
+  // Sections keep their own term, inside songs that are still alive.
+  const swept = all
+    .filter((s) => !stale.includes(s.id))
+    .filter((s) => s.deletedSections?.some((d) => (d.deletedAt ?? 0) < cutoff))
+    .map((s) => ({
+      ...s,
+      deletedSections: s.deletedSections?.filter((d) => (d.deletedAt ?? 0) >= cutoff),
+    }));
+  if (swept.length) await putSongs(swept);
+
+  await purgeExpiredMemos(cutoff);
 }
 
 export async function countSongs(): Promise<number> {

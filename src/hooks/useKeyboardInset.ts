@@ -34,28 +34,39 @@ export function useKeyboardInset(): number {
     };
 
     /**
-     * The keyboard slides in over a few hundred milliseconds, and iOS does not
-     * reliably fire a resize when it lands — measure once part-way through and
-     * the inset stays stuck at whatever the animation had reached. So a focus
-     * change takes several looks while it settles.
+     * Every frame for a moment after focus changes, rather than only when the
+     * viewport events happen to fire.
+     *
+     * Two reasons. The keyboard slides in over a few hundred milliseconds and
+     * iOS does not reliably announce when it lands, so a single reading can
+     * stick at whatever the animation had reached. And correcting the shove on
+     * a viewport event is a frame or more too late — the page is *painted*
+     * lifted and then dropped back, which is the flight this is meant to
+     * prevent rather than tidy up after. Checking every frame means it never
+     * gets more than one frame off the mark.
      */
-    const timers: number[] = [];
-    const settle = () => {
+    let raf = 0;
+    let until = 0;
+    const step = () => {
       update();
-      for (const ms of [60, 160, 300, 500]) timers.push(window.setTimeout(update, ms));
+      raf = performance.now() < until ? requestAnimationFrame(step) : 0;
+    };
+    const settle = () => {
+      until = performance.now() + 700;
+      if (!raf) raf = requestAnimationFrame(step);
     };
 
-    vv.addEventListener('resize', update);
+    vv.addEventListener('resize', settle);
     vv.addEventListener('scroll', update);
     window.addEventListener('focusin', settle);
     window.addEventListener('focusout', settle);
     update();
     return () => {
-      vv.removeEventListener('resize', update);
+      vv.removeEventListener('resize', settle);
       vv.removeEventListener('scroll', update);
       window.removeEventListener('focusin', settle);
       window.removeEventListener('focusout', settle);
-      for (const t of timers) window.clearTimeout(t);
+      cancelAnimationFrame(raf);
     };
   }, []);
 
