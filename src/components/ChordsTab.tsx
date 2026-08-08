@@ -41,7 +41,7 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
         <div className="empty">
           <p className="empty__title">No Sections</p>
           <p className="empty__hint">
-            Add a section for each part of the song — verse, chorus, bridge.
+            Add a section for each part of the song (ie. verse, bridge, chorus)
           </p>
         </div>
       ) : (
@@ -64,9 +64,10 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
               onDelete={(id) => void chords.remove(id)}
               onReveal={chords.setRevealedId}
               onAddChord={chords.startAdd}
-              onHoldChord={(sectionId, chord, at) =>
+              onTapChord={(sectionId, chord, at) =>
                 chords.hold({ sectionId, chord, at })
               }
+              onArrange={chords.setArranging}
               arranging={chords.arranging === section.id}
               onReorderChords={(id, from, to) => void chords.reorderChords(id, from, to)}
               onDoneArranging={() => chords.setArranging(null)}

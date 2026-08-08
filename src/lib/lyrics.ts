@@ -31,12 +31,13 @@ const TAG: Record<BlockKind, string> = {
 /**
  * Placeholder shown by CSS while a block is empty.
  *
- * Only the title has one. A sheet labelling its own empty lines "Tuning",
- * "Description", "Chords" reads as a form to fill in; blank, it reads as paper.
- * The lyric block gets something better than a label — see `ghostLine`.
+ * Only the two the page starts with. A sheet labelling every empty line
+ * "Tuning", "Description", "Chords" reads as a form to fill in; blank, it
+ * reads as paper.
  */
 const HINT: Partial<Record<BlockKind, string>> = {
   title: 'Title',
+  lyrics: 'Lyrics…',
 };
 
 const escape = (s: string) =>
@@ -59,75 +60,28 @@ export function classFor(kind: BlockKind): string {
 }
 
 /**
- * The line sitting where the first lyric goes until something is written over
- * it — someone else's song, in the sense that it is not yours yet.
+ * The empty song sheet: one line to write on.
  *
- * **These are written for this app, not quoted from anywhere.** Placeholder
- * text ships inside the binary and goes to the App Store with it, so a line
- * from a real record would be redistributing that record's lyrics. Swap the
- * list for whatever you like; nothing else needs to change.
+ * Nothing else is written in — not a section heading (a song that opens by
+ * telling you it has a verse has already made a decision for you) and not the
+ * empty tuning and description blocks it used to carry, which showed as blank
+ * lines above the lyric with nothing to say they were there. The gap under the
+ * title is now margin, which cannot be typed into by accident. The title isn't
+ * here either; it belongs to the song record and is edited on its own.
  */
-const GHOSTS = [
-  'She keeps the radio on all night',
-  'Meet me where the streetlights end',
-  'We were kings of a small town summer',
-  'I still drive past your street sometimes',
-  'Nothing here has changed but me',
-  'Hold the line for one more song',
-  'The last train out is always late',
-  'You never said goodbye out loud',
-  'Every road looks like it leads to you',
-  'I was young enough to mean it',
-  'Dance until the record skips',
-  'Neon on the wet road home',
-  'All the words I never sent',
-  'Someone else is wearing your jacket now',
-  'We had nothing and we spent it all',
-  'Turn it up until the walls give in',
-  'Sleep is just another town I have left',
-  'Your name is still in my handwriting',
-  'Wait for me under the water tower',
-  'Nobody is coming to save this town',
-];
-
-/**
- * Which line a song gets, quoted and trailing off the way a half-remembered
- * one does. Drawn from the song's id rather than at random, so it keeps the
- * same line every time it is opened — a placeholder that changed underneath
- * you would read as the app losing your words.
- */
-export function ghostLine(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return `“${GHOSTS[hash % GHOSTS.length]}…”`;
-}
-
-/**
- * The empty song sheet: the blocks it is built from, with nothing in them.
- *
- * No section heading is written in — a song that starts by telling you it has
- * a verse has already made a decision for you. The title isn't here either; it
- * belongs to the song record and is edited on its own, above this.
- */
-export function blankDoc(songId: string): string {
-  return [
-    block('tuning'),
-    block('desc'),
-    block('chords'),
-    block('lyrics', '', ghostLine(songId)),
-  ].join('');
+export function blankDoc(): string {
+  return block('lyrics');
 }
 
 /**
  * The document a song starts life with: whatever the list already knows about
- * it, and a line to write over.
+ * it, and a line to write over. Only what has something in it — see blankDoc.
  */
 export function defaultDoc(song: Song): string {
   return [
-    block('tuning', song.tuning ?? ''),
-    block('desc', song.description ?? ''),
-    block('chords'),
-    block('lyrics', '', ghostLine(song.id)),
+    song.tuning ? block('tuning', song.tuning) : '',
+    song.description ? block('desc', song.description) : '',
+    block('lyrics'),
   ].join('');
 }
 

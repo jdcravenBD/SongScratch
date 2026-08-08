@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef } from 'react';
 import type { HeldChord } from '../hooks/useChordSections';
-import { ComposeIcon, GripIcon, TrashIcon } from './icons';
+import { ComposeIcon, TrashIcon } from './icons';
 
 /** Clear of the chord, and of the screen's own edges. */
 const GAP = 8;
@@ -9,7 +9,6 @@ const EDGE = 12;
 interface Props {
   held: HeldChord;
   onEdit: () => void;
-  onRearrange: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -22,7 +21,7 @@ interface Props {
  * not to the screen. It is placed under the chord where there is room and above
  * it where there isn't, measured before the first paint so it never jumps.
  */
-export default function ChordMenu({ held, onEdit, onRearrange, onDelete, onClose }: Props) {
+export default function ChordMenu({ held, onEdit, onDelete, onClose }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -53,10 +52,8 @@ export default function ChordMenu({ held, onEdit, onRearrange, onDelete, onClose
           <ComposeIcon />
           <span>Edit</span>
         </button>
-        <button className="menu__item" type="button" onClick={onRearrange}>
-          <GripIcon />
-          <span>Rearrange</span>
-        </button>
+        {/* No "Rearrange" here: holding a chord goes straight into it, which
+            is one gesture instead of a trip through this menu. */}
         <button className="menu__item menu__item--danger" type="button" onClick={onDelete}>
           <TrashIcon />
           <span>Delete</span>

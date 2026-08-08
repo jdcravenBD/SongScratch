@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { Chord, ChordSection } from '../types';
 import type { ChordAnchor } from '../hooks/useChordSections';
+import { useSwipeGuard } from '../hooks/useSwipeGuard';
 import ChordDiagram from './ChordDiagram';
 import { PlusIcon } from './icons';
 
@@ -14,7 +15,10 @@ interface Props {
   section: ChordSection;
   /** True while this section's chords are being arranged. */
   arranging: boolean;
-  onHoldChord: (sectionId: string, chord: Chord, at: ChordAnchor) => void;
+  /** Tapped: what can be done with this one chord, and where it sits. */
+  onTapChord: (sectionId: string, chord: Chord, at: ChordAnchor) => void;
+  /** Held: the whole rail comes loose. */
+  onArrange: (sectionId: string) => void;
   onAddChord: (sectionId: string) => void;
   onReorder: (sectionId: string, from: number, to: number) => void;
   onDone: () => void;
@@ -23,9 +27,10 @@ interface Props {
 /**
  * The fingerings in one section, and the two things you can do to them.
  *
- * Held, a chord opens its menu. Once "Rearrange" has been chosen the whole rail
- * jiggles and any chord can be picked up and dropped somewhere else in the run;
- * a press anywhere off the rail ends it.
+ * A tap opens what can be done with that chord. **Holding** one sets the whole
+ * rail jiggling and hands the same press straight on to a drag, so picking a
+ * chord up and moving it is one gesture rather than a menu trip; a press
+ * anywhere off the rail puts them down again.
  *
  * The reordering is worked out from **measured positions**, not from arithmetic
  * on an index: chords wrap onto as many lines as they need, so "one place left"
@@ -36,14 +41,17 @@ interface Props {
 export default function SectionChords({
   section,
   arranging,
-  onHoldChord,
+  onTapChord,
+  onArrange,
   onAddChord,
   onReorder,
   onDone,
 }: Props) {
   const rail = useRef<HTMLDivElement>(null);
-  /** A press that becomes the chord's menu if it stays still long enough. */
+  /** A press that comes loose for arranging if it stays still long enough. */
   const hold = useRef({ x: 0, y: 0, id: -1, timer: 0 });
+  /** Which chord that press is on, so a tap can put its menu against it. */
+  const anchor = useRef<{ el: HTMLElement; chord: Chord } | null>(null);
   const drag = useRef<{
     id: number;
     from: number;
@@ -53,6 +61,13 @@ export default function SectionChords({
     startY: number;
     moved: boolean;
   } | null>(null);
+
+  /*
+   * A hold turns into a drag part-way through a gesture the browser has
+   * already agreed to scroll — and `touch-action` can't be changed once one is
+   * under way. Taking the scroll back by hand is the only way from here.
+   */
+  useSwipeGuard(rail, () => drag.current !== null);
 
   /** A press anywhere but on these chords is the way out. */
   useEffect(() => {
@@ -98,7 +113,8 @@ export default function SectionChords({
     const order = withMoved(d.rects.length, d.from, d.to);
     tiles().forEach((el, i) => {
       if (i === d.from) {
-        el.style.transform = `translate3d(${dx}px,${dy}px,0) scale(1.06)`;
+        // Position only — the lift's size is on the inside, with the jiggle.
+        el.style.transform = `translate3d(${dx}px,${dy}px,0)`;
         return;
       }
       const now = d.rects[i];
@@ -151,46 +167,50 @@ export default function SectionChords({
     if (moved && to !== from) onReorder(section.id, from, to);
   };
 
+  /** Picks a chord up. Used by both ways in — already loose, or just held. */
+  const beginDrag = (id: number, index: number, x: number, y: number) => {
+    drag.current = {
+      id,
+      from: index,
+      to: index,
+      rects: tiles().map((el) => el.getBoundingClientRect()),
+      startX: x,
+      startY: y,
+      moved: false,
+    };
+    // On the window: a capture elsewhere would otherwise take these away.
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
   const onDown = (e: ReactPointerEvent, chord: Chord, index: number) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
 
     if (arranging) {
-      const els = tiles();
-      drag.current = {
-        id: e.pointerId,
-        from: index,
-        to: index,
-        rects: els.map((el) => el.getBoundingClientRect()),
-        startX: e.clientX,
-        startY: e.clientY,
-        moved: false,
-      };
-      // On the window: a capture elsewhere would otherwise take these away.
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
+      beginDrag(e.pointerId, index, e.clientX, e.clientY);
       return;
     }
 
     // Held now: currentTarget only means anything during the dispatch itself.
     const el = e.currentTarget as HTMLElement;
+    const { pointerId, clientX, clientY } = e;
     endHold();
     hold.current = {
-      x: e.clientX,
-      y: e.clientY,
-      id: e.pointerId,
+      x: clientX,
+      y: clientY,
+      id: pointerId,
       timer: window.setTimeout(() => {
         hold.current.timer = 0;
-        const box = el.getBoundingClientRect();
-        // Against the screen, which is what the menu is positioned inside.
-        const screen = el.closest('.screen')?.getBoundingClientRect();
-        onHoldChord(section.id, chord, {
-          x: box.left + box.width / 2 - (screen?.left ?? 0),
-          top: box.top - (screen?.top ?? 0),
-          bottom: box.bottom - (screen?.top ?? 0),
-        });
+        onArrange(section.id);
+        // The same press carries straight on into moving that chord — the
+        // finger is already down on it, and asking for a second one to start
+        // the drag would be a gesture nobody makes.
+        beginDrag(pointerId, index, clientX, clientY);
       }, LONG_MS),
     };
+    // Where the menu would grow from, measured while the element is to hand.
+    anchor.current = { el, chord };
   };
 
   const onHoldMove = (e: ReactPointerEvent) => {
@@ -202,6 +222,23 @@ export default function SectionChords({
     }
   };
 
+  /** Let go before the hold landed, and without going anywhere: a tap. */
+  const onTap = (e: ReactPointerEvent) => {
+    const press = hold.current;
+    const at = anchor.current;
+    if (press.id !== e.pointerId || !press.timer || !at) return;
+    endHold();
+    anchor.current = null;
+    const box = at.el.getBoundingClientRect();
+    // Against the screen, which is what the menu is positioned inside.
+    const screen = at.el.closest('.screen')?.getBoundingClientRect();
+    onTapChord(section.id, at.chord, {
+      x: box.left + box.width / 2 - (screen?.left ?? 0),
+      top: box.top - (screen?.top ?? 0),
+      bottom: box.bottom - (screen?.top ?? 0),
+    });
+  };
+
   return (
     <div className={`chords${arranging ? ' is-arranging' : ''}`} ref={rail}>
       {section.chords.map((chord, i) => (
@@ -210,7 +247,7 @@ export default function SectionChords({
           key={chord.id}
           onPointerDown={(e) => onDown(e, chord, i)}
           onPointerMove={onHoldMove}
-          onPointerUp={endHold}
+          onPointerUp={onTap}
           onPointerCancel={endHold}
         >
           {/* The jiggle lives on the inside so the outside is free to be moved:

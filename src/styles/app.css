@@ -78,9 +78,11 @@
   /*
    * How far the bottom bars sit off the edge. The safe inset alone already
    * clears the home indicator, so adding to it on top left a band of dead
-   * black under every dock; this pulls them back down into it a little.
+   * black under every dock; this pulls them back down into it. Apple's own
+   * floating search sits well inside the inset — matching it means giving up
+   * most of the 34pt and keeping only enough to clear the indicator itself.
    */
-  --dock-floor: max(6px, calc(var(--safe-b) - 12px));
+  --dock-floor: max(6px, calc(var(--safe-b) - 22px));
   /* One height for every glass control — chips, icon buttons, the search
      field, the tabs and the format bar all sit on this, so nothing reads as
      slightly the wrong size beside its neighbour. */
@@ -1149,7 +1151,9 @@ input {
 }
 
 .ly {
-  padding: 0 calc(var(--text-edge) + var(--safe-r)) 28px
+  /* Real margin under the title, not an empty block standing in for one —
+     that read as a blank line you could put the caret in by mistake. */
+  padding: 14px calc(var(--text-edge) + var(--safe-r)) 28px
     calc(var(--text-edge) + var(--safe-l));
   outline: none;
   cursor: text;
@@ -2140,8 +2144,19 @@ input {
   }
 }
 
+/*
+ * Loose chords stand up off the page, and the one in hand stands up further.
+ * Sized with the `scale` property rather than inside `transform`, which the
+ * jiggle is already using — the two compose instead of overwriting each other,
+ * and neither disturbs the layout the drag measures its slots from.
+ */
+.chord__inner {
+  transition: scale 0.18s var(--ease);
+}
+
 .chords.is-arranging .chord__inner {
   animation: jiggle 0.27s ease-in-out infinite;
+  scale: 1.07;
 }
 
 /* Out of step with each other, or the rail pulses as one object. */
@@ -2169,7 +2184,8 @@ input {
   transition: transform 0.2s var(--ease);
 }
 
-/* The one under the finger keeps up with it, and rides above the rest. */
+/* The one under the finger keeps up with it, and rides above the rest. The
+   scale is on the inside, so it is not one of the things dropped here. */
 .chords.is-arranging .chord--held.is-lifted {
   transition: none;
   cursor: grabbing;
@@ -2177,7 +2193,8 @@ input {
 
 .chords.is-arranging .chord--held.is-lifted .chord__inner {
   animation: none;
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+  scale: 1.18;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.6));
 }
 
 .diagram {

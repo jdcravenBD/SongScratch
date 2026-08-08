@@ -31,8 +31,10 @@ interface Props {
   onDelete: (id: string) => void;
   onReveal: (id: string | null) => void;
   onAddChord: (sectionId: string) => void;
-  /** A chord held down long enough to want its menu, and where it sits. */
-  onHoldChord: (sectionId: string, chord: Chord, at: ChordAnchor) => void;
+  /** A chord tapped: its menu, and where it sits. */
+  onTapChord: (sectionId: string, chord: Chord, at: ChordAnchor) => void;
+  /** A chord held: this section's run comes loose. */
+  onArrange: (sectionId: string) => void;
   /** True while this section's chords are being arranged. */
   arranging: boolean;
   onReorderChords: (sectionId: string, from: number, to: number) => void;
@@ -65,7 +67,8 @@ export default function SectionRow({
   onDelete,
   onReveal,
   onAddChord,
-  onHoldChord,
+  onTapChord,
+  onArrange,
   arranging,
   onReorderChords,
   onDoneArranging,
@@ -338,7 +341,8 @@ export default function SectionRow({
             <SectionChords
               section={section}
               arranging={arranging}
-              onHoldChord={onHoldChord}
+              onTapChord={onTapChord}
+              onArrange={onArrange}
               onAddChord={onAddChord}
               onReorder={onReorderChords}
               onDone={onDoneArranging}

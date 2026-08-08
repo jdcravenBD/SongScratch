@@ -172,7 +172,7 @@ export default function SongEditor({ id, onBack }: Props) {
     // than leaving a page with nothing on it and no way to tell it apart from
     // one that failed to load. Only on the way out — rebuilding the document
     // mid-sentence would take the caret and the undo stack with it.
-    if (isBlankDoc(el)) el.innerHTML = blankDoc(id);
+    if (isBlankDoc(el)) el.innerHTML = blankDoc();
     markBlanks(el);
     window.clearTimeout(saveTimer.current);
     pending.current = null;
@@ -422,10 +422,6 @@ export default function SongEditor({ id, onBack }: Props) {
           onClose={chords.release}
           onEdit={() => {
             chords.startEdit(chords.held!.sectionId, chords.held!.chord);
-            chords.release();
-          }}
-          onRearrange={() => {
-            chords.setArranging(chords.held!.sectionId);
             chords.release();
           }}
           onDelete={async () => {
