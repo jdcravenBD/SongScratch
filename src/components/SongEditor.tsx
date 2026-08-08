@@ -45,9 +45,16 @@ const TAB_LABEL: Record<Tab, string> = {
 /** Typing settles for this long before anything is written to the store. */
 const SAVE_AFTER = 400;
 
+/** Matches --screen-ms, and App's own copy of it. */
+const SCREEN_MS = 280;
+
 interface Props {
   id: string;
+  /** True while this screen is sliding back off to the right. */
+  leaving?: boolean;
   onBack: () => void;
+  /** Leave without the animation — for the edge swipe, which is its own. */
+  onDismiss?: () => void;
 }
 
 /**
@@ -56,15 +63,22 @@ interface Props {
  * switcher) and whether the page is being edited, since that decides between
  * the Edit button and the format bar at the bottom.
  */
-export default function SongEditor({ id, onBack }: Props) {
+export default function SongEditor({ id, leaving, onBack, onDismiss }: Props) {
   const [song, setSong] = useState<Song | null>(null);
-  // Lyrics is the tab that exists; chords and voice come next.
+  // Lyrics is the tab a song opens on.
   const [tab, setTab] = useState<Tab>('lyrics');
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** The picker, held on screen while it slides away. */
+  const [pickerLeaving, setPickerLeaving] = useState(false);
+  /**
+   * Which way the tab being shown lies from the one before it. A ref, not
+   * state: it is read while rendering the tab that changing it caused.
+   */
+  const tabDir = useRef(1);
+  const pickerTimer = useRef(0);
 
   const docRef = useRef<HTMLDivElement>(null);
-  const screenRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef(0);
   const titleTimer = useRef(0);
   /** Latest unsaved HTML, so leaving the screen can flush it. */
@@ -77,7 +91,25 @@ export default function SongEditor({ id, onBack }: Props) {
 
   // Swipe in from the left edge to leave, as the system apps do. Not while the
   // page is being written on, where a drag has to mean "select".
-  useEdgeBack(screenRef, onBack, !editing);
+  const screenRef = useEdgeBack(onDismiss ?? onBack, !editing);
+
+  useEffect(() => () => window.clearTimeout(pickerTimer.current), []);
+
+  /** Sends the picker away, and does the thing it was closed for as it goes. */
+  const closePicker = (act: () => void) => {
+    if (pickerLeaving) return;
+    setPickerLeaving(true);
+    pickerTimer.current = window.setTimeout(() => {
+      setPickerLeaving(false);
+      act();
+    }, SCREEN_MS);
+  };
+
+  /** Tabs arrive from whichever side they sit on relative to the last one. */
+  const goTab = (next: Tab) => {
+    tabDir.current = TABS.indexOf(next) - TABS.indexOf(tab);
+    setTab(next);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -196,9 +228,9 @@ export default function SongEditor({ id, onBack }: Props) {
     <>
     <div
       ref={screenRef}
-      className={`screen editor${editing ? ' is-editing' : ''}${
-        tab === 'voice' ? ' is-voice' : ''
-      }${tab === 'chords' ? ' is-chords' : ''}`}
+      className={`screen editor${leaving ? ' is-leaving' : ''}${
+        editing ? ' is-editing' : ''
+      }${tab === 'voice' ? ' is-voice' : ''}${tab === 'chords' ? ' is-chords' : ''}`}
     >
       <header className="ebar">
         <button className="iconbtn" type="button" aria-label="Back to songs" onClick={onBack}>
@@ -240,7 +272,13 @@ export default function SongEditor({ id, onBack }: Props) {
         </div>
       </header>
 
-      <ScrollArea dragScroll={!editing}>
+      {/* Keyed by tab so the content is rebuilt — and so its entrance runs
+          again — every time one is chosen. */}
+      <ScrollArea
+        key={tab}
+        className={tabDir.current < 0 ? 'is-from-left' : 'is-from-right'}
+        dragScroll={!editing}
+      >
         {tab === 'lyrics' ? (
           <>
             <LyricsTab
@@ -286,7 +324,7 @@ export default function SongEditor({ id, onBack }: Props) {
                 className={`tabs__tab${tab === t ? ' is-on' : ''}`}
                 type="button"
                 aria-current={tab === t}
-                onClick={() => setTab(t)}
+                onClick={() => goTab(t)}
               >
                 {TAB_LABEL[t]}
               </button>
@@ -439,8 +477,10 @@ export default function SongEditor({ id, onBack }: Props) {
     {chords.picking && (
       <ChordPicker
         initial={chords.picking.chord}
-        onCancel={chords.cancelPick}
-        onConfirm={(chord) => void chords.savePick(chord)}
+        leaving={pickerLeaving}
+        onCancel={() => closePicker(chords.cancelPick)}
+        onDismiss={chords.cancelPick}
+        onConfirm={(chord) => closePicker(() => void chords.savePick(chord))}
       />
     )}
     </>

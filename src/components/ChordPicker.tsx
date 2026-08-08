@@ -17,7 +17,11 @@ const ALL_MUTED: ChordShape = { frets: [-1, -1, -1, -1, -1, -1], baseFret: 1 };
 interface Props {
   /** The chord being changed, or null when a new one is being added. */
   initial?: Chord | null;
+  /** True while this screen is sliding away to the right. */
+  leaving?: boolean;
   onCancel: () => void;
+  /** Leave without the animation — for the edge swipe, which is its own. */
+  onDismiss?: () => void;
   onConfirm: (chord: Chord) => void;
 }
 
@@ -29,17 +33,22 @@ interface Props {
  * the fretboard, so every chord leaves by the same door and can be looked at,
  * altered, or played against before it is kept.
  */
-export default function ChordPicker({ initial, onCancel, onConfirm }: Props) {
+export default function ChordPicker({
+  initial,
+  leaving,
+  onCancel,
+  onDismiss,
+  onConfirm,
+}: Props) {
   // An existing chord opens on its own fingering, so editing starts from what
   // is already there rather than from a bare neck.
   const [shape, setShape] = useState<ChordShape>(initial?.shape ?? EMPTY);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
   const field = useRef<HTMLInputElement>(null);
-  const screen = useRef<HTMLDivElement>(null);
 
   const keyboardInset = useKeyboardInset();
-  useEdgeBack(screen, onCancel);
+  const screen = useEdgeBack(onDismiss ?? onCancel);
 
   const detected = useMemo(() => detectChord(shape.frets), [shape]);
   const results = useMemo(() => searchChords(query), [query]);
@@ -51,7 +60,7 @@ export default function ChordPicker({ initial, onCancel, onConfirm }: Props) {
        the keyboard is covering — searching is the one thing here that opens
        one, and results underneath it can't be reached. */
     <div
-      className="screen picker"
+      className={`screen picker${leaving ? ' is-leaving' : ''}`}
       ref={screen}
       style={{ '--kb': `${keyboardInset}px` } as React.CSSProperties}
     >

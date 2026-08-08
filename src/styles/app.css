@@ -89,6 +89,9 @@
   --control-h: 48px;
 
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+  /* How long a whole screen takes to arrive or leave. App.tsx holds the same
+     number, so it can keep the outgoing screen on stage for exactly that long. */
+  --screen-ms: 0.28s;
 
   /* Safe areas. Real on a phone; overridden inside the desktop frame. */
   --safe-t: env(safe-area-inset-top, 0px);
@@ -331,6 +334,43 @@ input {
 .scroll__viewport::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/*
+ * A newly chosen tab comes in from the side it sits on: Voice from the right of
+ * Lyrics, Chords from the left of it. Only the arriving tab moves — the one
+ * leaving is gone the instant it is replaced — so the travel is short and
+ * carries a fade, which reads as coming from that side without leaving a gap
+ * where the old one was. The viewport clips horizontally, so nothing spills.
+ */
+@keyframes tab-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(34px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tab-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-34px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.scroll.is-from-right .scroll__content {
+  animation: tab-in-right 0.24s var(--ease) backwards;
+}
+
+.scroll.is-from-left .scroll__content {
+  animation: tab-in-left 0.24s var(--ease) backwards;
 }
 
 .scroll__content {
@@ -942,7 +982,23 @@ input {
   /* Only the top bar sits above the page now; the tabs moved to the bottom. */
   --nav-h: var(--ebar-h);
   --dock-h: 80px;
-  animation: editor-in 0.26s var(--ease) both;
+  /* Opaque: the list is still underneath for the length of the push, and has
+     to be covered rather than shown through. */
+  background: var(--bg);
+  /*
+   * `backwards`, never `both`. A finished animation with a forwards fill keeps
+   * its last frame applied for good — and an animation beats an inline style,
+   * so `transform: none` would sit on top of the edge-back gesture and the
+   * screen would refuse to follow the finger. Backwards still covers the frame
+   * before it starts, which is all this needs.
+   */
+  animation: screen-in-right var(--screen-ms) var(--ease) backwards;
+}
+
+/* Going back the way it came. Forwards here: it has to stay off the side until
+   it is actually unmounted. */
+.editor.is-leaving {
+  animation: screen-out-right var(--screen-ms) var(--ease) forwards;
 }
 
 /* The voice tab stacks its record control above the tabs, so the bottom bar is
@@ -966,13 +1022,36 @@ input {
   gap: 8px;
 }
 
-@keyframes editor-in {
+/* ------------------------------------------------------- screen transitions --
+ * A song pushes in from the right over the list and slides back out the same
+ * way; the fretboard, which is a thing being filled in rather than a place, is
+ * raised from the bottom and put away to the side. No fading: a screen that
+ * fades is a screen appearing, and these are screens arriving from somewhere.
+ */
+
+@keyframes screen-in-right {
   from {
-    opacity: 0;
-    transform: translateX(18px);
+    transform: translateX(100%);
   }
   to {
-    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes screen-out-right {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-in-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
     transform: none;
   }
 }
@@ -2268,7 +2347,14 @@ input {
   bottom: var(--kb, 0px);
   z-index: 50;
   background: var(--bg);
-  animation: editor-in 0.24s var(--ease) both;
+  /* Up from the bottom: it is a tool being brought out, not a page being gone
+     to. It leaves to the side like everything else, so "away" is one direction
+     throughout the app. */
+  animation: sheet-in-up var(--screen-ms) var(--ease) backwards;
+}
+
+.picker.is-leaving {
+  animation: screen-out-right var(--screen-ms) var(--ease) forwards;
 }
 
 .picker__top {

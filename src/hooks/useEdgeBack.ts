@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import type { RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** How far in from the left edge a press has to land to count as an edge grab. */
 const EDGE = 26;
@@ -23,18 +22,34 @@ const FLICK = 0.45; // px per ms
  * Only used where a rightward swipe means nothing else. Song rows swipe right
  * to pin, so the list deliberately doesn't have this; the editor and the chord
  * picker, whose rows only swipe left, do.
+ *
+ * Returns the ref to put on the screen. It hands back a **callback ref**, not a
+ * plain one: a screen that waits for its record before it draws anything real
+ * fills a `useRef` after the effect that wanted it has already run, and the
+ * gesture would then be attached to nothing for the life of the screen.
  */
-export function useEdgeBack(
-  screen: RefObject<HTMLElement | null>,
-  onBack: () => void,
-  enabled = true,
-) {
+export function useEdgeBack(onBack: () => void, enabled = true) {
+  const [el, setEl] = useState<HTMLElement | null>(null);
+
+  /*
+   * Held in a ref rather than in the dependencies. A parent hands this in as a
+   * fresh closure on every render, and re-running the effect tears the gesture
+   * down mid-drag — the cleanup wipes the transform, so the screen snaps back
+   * under the finger and the swipe dies. Only the element and `enabled` may do
+   * that now.
+   */
+  const back = useRef(onBack);
   useEffect(() => {
-    const el = screen.current;
+    back.current = onBack;
+  });
+
+  useEffect(() => {
     if (!el || !enabled) return;
 
     let id: number | null = null;
     let owns = false;
+    /** A swipe just happened; eat the click it would otherwise fire. */
+    let swallow = false;
     let startX = 0;
     let startY = 0;
     let lastX = 0;
@@ -98,14 +113,24 @@ export function useEdgeBack(
       const went = owns;
       release();
       if (!went) return;
+      // A drag that ends on the page must not also be a tap on it — landing on
+      // the lyrics would otherwise open the keyboard on the way out.
+      swallow = true;
 
       const width = el.offsetWidth || 390;
       if (dx > width * COMMIT || (dx > 40 && speed > FLICK)) {
         move(width, true);
-        window.setTimeout(onBack, 200);
+        window.setTimeout(() => back.current(), 200);
       } else {
         move(0, true);
       }
+    };
+
+    const onClick = (e: MouseEvent) => {
+      if (!swallow) return;
+      swallow = false;
+      e.preventDefault();
+      e.stopPropagation();
     };
 
     // The list under the finger must not scroll while the screen is being
@@ -121,6 +146,7 @@ export function useEdgeBack(
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
     el.addEventListener('touchmove', block, { passive: false });
+    el.addEventListener('click', onClick, true);
 
     return () => {
       el.removeEventListener('pointerdown', onDown);
@@ -128,9 +154,12 @@ export function useEdgeBack(
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       el.removeEventListener('touchmove', block);
+      el.removeEventListener('click', onClick, true);
       el.style.transition = '';
       el.style.transform = '';
       el.style.willChange = '';
     };
-  }, [screen, onBack, enabled]);
+  }, [el, enabled]);
+
+  return setEl;
 }

@@ -12,6 +12,9 @@ interface Props {
   onScroll?: (top: number) => void;
   /** Off while text is being edited, where a drag has to mean "select". */
   dragScroll?: boolean;
+  /** Extra classes on the container — the editor uses these to say which way
+      a newly chosen tab should arrive from. */
+  className?: string;
 }
 
 /**
@@ -23,7 +26,12 @@ interface Props {
  * The blur-and-fade edges are not here — they belong to the nav bar and the
  * dock, which sit over this and already have to blur what passes beneath them.
  */
-export default function ScrollArea({ children, onScroll, dragScroll = true }: Props) {
+export default function ScrollArea({
+  children,
+  onScroll,
+  dragScroll = true,
+  className = '',
+}: Props) {
   const viewport = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
@@ -84,7 +92,7 @@ export default function ScrollArea({ children, onScroll, dragScroll = true }: Pr
   }, [onScroll]);
 
   return (
-    <div className="scroll">
+    <div className={`scroll${className ? ` ${className}` : ''}`}>
       <div className="scroll__viewport" ref={viewport}>
         <div className="scroll__content" ref={content}>
           {children}
