@@ -4,6 +4,7 @@ import type { Song } from '../types';
 import { deleteSongs, getSong, putSong } from '../db/songs';
 import { extractMeta, setBlockKind, type BlockKind } from '../lib/lyrics';
 import { newId } from '../lib/id';
+import { useEdgeBack } from '../hooks/useEdgeBack';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useVoiceMemos } from '../hooks/useVoiceMemos';
 import { useChordSections } from '../hooks/useChordSections';
@@ -13,6 +14,7 @@ import LyricsTab from './LyricsTab';
 import FormatBar from './FormatBar';
 import { VoiceDock, VoiceList } from './VoiceTab';
 import { ChordsDock, ChordsList } from './ChordsTab';
+import ChordMenu from './ChordMenu';
 import ChordPicker from './ChordPicker';
 import {
   BackIcon,
@@ -54,12 +56,17 @@ export default function SongEditor({ id, onBack }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const docRef = useRef<HTMLDivElement>(null);
+  const screenRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef(0);
   /** Latest unsaved HTML, so leaving the screen can flush it. */
   const pending = useRef<string | null>(null);
   const keyboardInset = useKeyboardInset();
   const voice = useVoiceMemos(id, tab === 'voice');
   const chords = useChordSections(id, tab === 'chords');
+
+  // Swipe in from the left edge to leave, as the system apps do. Not while the
+  // page is being written on, where a drag has to mean "select".
+  useEdgeBack(screenRef, onBack, !editing);
 
   useEffect(() => {
     let alive = true;
@@ -144,6 +151,7 @@ export default function SongEditor({ id, onBack }: Props) {
   return (
     <>
     <div
+      ref={screenRef}
       className={`screen editor${editing ? ' is-editing' : ''}${
         tab === 'voice' ? ' is-voice' : ''
       }${tab === 'chords' ? ' is-chords' : ''}`}
@@ -352,14 +360,33 @@ export default function SongEditor({ id, onBack }: Props) {
           </div>
         </div>
       )}
+
+      {/* Held down on the chords tab: what can be done with that one chord. */}
+      {chords.held && (
+        <ChordMenu
+          held={chords.held}
+          onClose={chords.release}
+          onEdit={() => {
+            chords.startEdit(chords.held!.sectionId, chords.held!.chord);
+            chords.release();
+          }}
+          onDelete={async () => {
+            const { sectionId, chord } = chords.held!;
+            chords.release();
+            await chords.removeChord(sectionId, chord.id);
+          }}
+        />
+      )}
     </div>
 
     {/* Picking a chord takes the whole screen — the fretboard needs the room,
-        and search and the note wheel are still to join it there. */}
-    {chords.addingTo && (
+        and the search results share it. Editing opens the same screen with the
+        chord's own fingering already on the neck. */}
+    {chords.picking && (
       <ChordPicker
-        onCancel={chords.cancelAdd}
-        onConfirm={(chord) => void chords.addChord(chords.addingTo!, chord)}
+        initial={chords.picking.chord}
+        onCancel={chords.cancelPick}
+        onConfirm={(chord) => void chords.savePick(chord)}
       />
     )}
     </>

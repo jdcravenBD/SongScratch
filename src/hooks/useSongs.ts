@@ -113,6 +113,20 @@ async function doSeed(): Promise<void> {
   );
 }
 
+/**
+ * "New Song", then "New Song 2"… counted from the highest already in use, so
+ * deleting one doesn't hand its name to the next song made. Matches how the
+ * chord sections and the voice memos number their own untitled ones.
+ */
+function nextSongTitle(existing: Song[]): string {
+  let highest = 0;
+  for (const song of existing) {
+    const match = /^New Song(?: (\d+))?$/i.exec(song.title.trim());
+    if (match) highest = Math.max(highest, match[1] ? Number(match[1]) : 1);
+  }
+  return highest === 0 ? 'New Song' : `New Song ${highest + 1}`;
+}
+
 export interface SongsApi {
   /** `null` while the store is still loading. */
   songs: Song[] | null;
@@ -154,7 +168,9 @@ export function useSongs(): SongsApi {
   }, []);
 
   const createSong = useCallback(async () => {
-    const song = newSong({ title: '' });
+    // Named from the store rather than from state, which can be a beat behind
+    // two songs made in quick succession and would name them both the same.
+    const song = newSong({ title: nextSongTitle(await getAllSongs()) });
     await putSong(song);
     await refresh();
     return song.id;

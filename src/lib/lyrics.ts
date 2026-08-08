@@ -28,21 +28,26 @@ const TAG: Record<BlockKind, string> = {
   lyrics: 'p',
 };
 
-/** Placeholder shown by CSS while a block is empty. */
-const HINT: Record<BlockKind, string> = {
+/**
+ * Placeholder shown by CSS while a block is empty.
+ *
+ * Only the title has one. A sheet labelling its own empty lines "Tuning",
+ * "Description", "Chords" reads as a form to fill in; blank, it reads as paper.
+ * The lyric block gets something better than a label — see `ghostLine`.
+ */
+const HINT: Partial<Record<BlockKind, string>> = {
   title: 'Title',
-  tuning: 'Tuning',
-  desc: 'Description',
-  section: 'Section',
-  chords: 'Chords',
-  lyrics: 'Lyrics',
 };
 
 const escape = (s: string) =>
   s.replace(/[&<>]/g, (c) => (c === '&' ? '&amp;' : c === '<' ? '&lt;' : '&gt;'));
 
-export function block(kind: BlockKind, text = ''): string {
-  return `<${TAG[kind]} class="${BLOCK[kind]}" data-ph="${HINT[kind]}">${escape(text)}</${TAG[kind]}>`;
+/** Same, plus the quote — this one goes inside an attribute. */
+const escapeAttr = (s: string) => escape(s).replace(/"/g, '&quot;');
+
+export function block(kind: BlockKind, text = '', hint = HINT[kind]): string {
+  const ph = hint ? ` data-ph="${escapeAttr(hint)}"` : '';
+  return `<${TAG[kind]} class="${BLOCK[kind]}"${ph}>${escape(text)}</${TAG[kind]}>`;
 }
 
 export function tagFor(kind: BlockKind): string {
@@ -51,6 +56,47 @@ export function tagFor(kind: BlockKind): string {
 
 export function classFor(kind: BlockKind): string {
   return BLOCK[kind];
+}
+
+/**
+ * A line of an older song, sitting where the first lyric goes until something
+ * is written over it.
+ *
+ * All of them are traditional or long out of copyright — these ship inside the
+ * app and go to the App Store with it, which no modern lyric could.
+ */
+const GHOSTS = [
+  'There is a house in New Orleans',
+  'I am a poor wayfaring stranger',
+  'Oh Shenandoah, I long to hear you',
+  'Are you going to Scarborough Fair',
+  'The water is wide, I cannot get over',
+  'In the pines, where the sun never shines',
+  'Hang down your head, Tom Dooley',
+  'I am a man of constant sorrow',
+  'Frankie and Johnny were lovers',
+  'Down in the valley, valley so low',
+  'Love, oh love, oh careless love',
+  'I went down to St. James Infirmary',
+  'Amazing grace, how sweet the sound',
+  'Swing low, sweet chariot',
+  'Alas, my love, you do me wrong',
+  'I come from Alabama with a banjo on my knee',
+  'In Scarlet Town where I was born',
+  'Oh, the cuckoo, she is a pretty bird',
+  'John Henry was a little baby boy',
+  'Shady Grove, my little love',
+];
+
+/**
+ * Which line a song gets. Drawn from its id rather than at random, so a song
+ * keeps the same one every time it is opened — a placeholder that changed
+ * underneath you would read as the app losing your words.
+ */
+export function ghostLine(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  return GHOSTS[hash % GHOSTS.length];
 }
 
 /**
@@ -64,7 +110,7 @@ export function defaultDoc(song: Song): string {
     block('desc', song.description ?? ''),
     block('section', 'Verse'),
     block('chords'),
-    block('lyrics'),
+    block('lyrics', '', ghostLine(song.id)),
   ].join('');
 }
 
@@ -86,7 +132,8 @@ export function setBlockKind(root: HTMLElement, kind: BlockKind): void {
   const old = node as HTMLElement;
   const next = document.createElement(TAG[kind]);
   next.className = BLOCK[kind];
-  next.setAttribute('data-ph', HINT[kind]);
+  const hint = HINT[kind];
+  if (hint) next.setAttribute('data-ph', hint);
   while (old.firstChild) next.appendChild(old.firstChild);
   root.replaceChild(next, old);
 

@@ -54,6 +54,9 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
               onDelete={(id) => void chords.remove(id)}
               onReveal={chords.setRevealedId}
               onAddChord={chords.startAdd}
+              onHoldChord={(sectionId, chord, at) =>
+                chords.hold({ sectionId, chord, at })
+              }
               onGrip={begin}
             />
           ))}

@@ -3,6 +3,31 @@ import type { Chord, ChordSection, Song } from '../types';
 import { getSong, putSong } from '../db/songs';
 import { newId } from '../lib/id';
 
+/** What the picker is open for, or null when it is shut. */
+export interface Picking {
+  sectionId: string;
+  /** The chord being changed; null when a new one is being added. */
+  chord: Chord | null;
+}
+
+/**
+ * Where a held chord sits on screen, so its menu can grow out of it. Measured
+ * against the screen rather than the window — on desktop the app is inside a
+ * phone-shaped frame partway across the page.
+ */
+export interface ChordAnchor {
+  /** The middle of the chord, horizontally. */
+  x: number;
+  top: number;
+  bottom: number;
+}
+
+export interface HeldChord {
+  sectionId: string;
+  chord: Chord;
+  at: ChordAnchor;
+}
+
 export interface ChordSections {
   sections: ChordSection[];
   add: () => Promise<void>;
@@ -12,11 +37,17 @@ export interface ChordSections {
   reorder: (from: number, to: number) => Promise<void>;
   /** Empties the tab — offered from the editor's menu. */
   clearAll: () => Promise<void>;
-  /** The section a chord is being picked for, or null when the picker is shut. */
-  addingTo: string | null;
+  picking: Picking | null;
   startAdd: (sectionId: string) => void;
-  cancelAdd: () => void;
-  addChord: (sectionId: string, chord: Chord) => Promise<void>;
+  startEdit: (sectionId: string, chord: Chord) => void;
+  cancelPick: () => void;
+  /** Puts the picker's chord back — in place when editing, at the end when new. */
+  savePick: (chord: Chord) => Promise<void>;
+  removeChord: (sectionId: string, chordId: string) => Promise<void>;
+  /** The chord being held down, and where, or null when no menu is open. */
+  held: HeldChord | null;
+  hold: (held: HeldChord) => void;
+  release: () => void;
   expandedId: string | null;
   setExpandedId: (id: string | null) => void;
   revealedId: string | null;
@@ -36,7 +67,8 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
   const [sections, setSections] = useState<ChordSection[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [revealedId, setRevealedId] = useState<string | null>(null);
-  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [picking, setPicking] = useState<Picking | null>(null);
+  const [held, setHeld] = useState<HeldChord | null>(null);
 
   const refresh = useCallback(async () => {
     const song = await getSong(songId);
@@ -104,15 +136,39 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit],
   );
 
-  const addChord = useCallback(
-    async (sectionId: string, chord: Chord) => {
-      setAddingTo(null);
+  /**
+   * The one way a chord gets written. A chord keeps its id through an edit, so
+   * the same call either replaces it where it stands or adds a new one at the
+   * end — the picker never has to know which it was doing.
+   */
+  const savePick = useCallback(
+    async (chord: Chord) => {
+      const target = picking?.sectionId;
+      setPicking(null);
+      if (!target) return;
       await commit((current) =>
-        current.map((s) =>
-          s.id === sectionId ? { ...s, chords: [...s.chords, chord] } : s,
-        ),
+        current.map((s) => {
+          if (s.id !== target) return s;
+          const at = s.chords.findIndex((c) => c.id === chord.id);
+          if (at === -1) return { ...s, chords: [...s.chords, chord] };
+          const chords = [...s.chords];
+          chords[at] = chord;
+          return { ...s, chords };
+        }),
       );
     },
+    [commit, picking],
+  );
+
+  const removeChord = useCallback(
+    (sectionId: string, chordId: string) =>
+      commit((current) =>
+        current.map((s) =>
+          s.id === sectionId
+            ? { ...s, chords: s.chords.filter((c) => c.id !== chordId) }
+            : s,
+        ),
+      ),
     [commit],
   );
 
@@ -123,10 +179,15 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     remove,
     reorder,
     clearAll,
-    addingTo,
-    startAdd: setAddingTo,
-    cancelAdd: () => setAddingTo(null),
-    addChord,
+    picking,
+    startAdd: (sectionId: string) => setPicking({ sectionId, chord: null }),
+    startEdit: (sectionId: string, chord: Chord) => setPicking({ sectionId, chord }),
+    cancelPick: () => setPicking(null),
+    savePick,
+    removeChord,
+    held,
+    hold: setHeld,
+    release: () => setHeld(null),
     expandedId,
     setExpandedId,
     revealedId,

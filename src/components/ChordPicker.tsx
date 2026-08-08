@@ -3,6 +3,8 @@ import type { Chord, ChordShape } from '../types';
 import { detectChord } from '../lib/chordName';
 import { searchChords } from '../lib/chordLibrary';
 import { newId } from '../lib/id';
+import { useEdgeBack } from '../hooks/useEdgeBack';
+import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import ScrollArea from './ScrollArea';
 import Fretboard from './Fretboard';
 import ChordDiagram from './ChordDiagram';
@@ -13,6 +15,8 @@ const EMPTY: ChordShape = { frets: [0, 0, 0, 0, 0, 0], baseFret: 1 };
 const ALL_MUTED: ChordShape = { frets: [-1, -1, -1, -1, -1, -1], baseFret: 1 };
 
 interface Props {
+  /** The chord being changed, or null when a new one is being added. */
+  initial?: Chord | null;
   onCancel: () => void;
   onConfirm: (chord: Chord) => void;
 }
@@ -25,11 +29,17 @@ interface Props {
  * the fretboard, so every chord leaves by the same door and can be looked at,
  * altered, or played against before it is kept.
  */
-export default function ChordPicker({ onCancel, onConfirm }: Props) {
-  const [shape, setShape] = useState<ChordShape>(EMPTY);
+export default function ChordPicker({ initial, onCancel, onConfirm }: Props) {
+  // An existing chord opens on its own fingering, so editing starts from what
+  // is already there rather than from a bare neck.
+  const [shape, setShape] = useState<ChordShape>(initial?.shape ?? EMPTY);
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
   const field = useRef<HTMLInputElement>(null);
+  const screen = useRef<HTMLDivElement>(null);
+
+  const keyboardInset = useKeyboardInset();
+  useEdgeBack(screen, onCancel);
 
   const detected = useMemo(() => detectChord(shape.frets), [shape]);
   const results = useMemo(() => searchChords(query), [query]);
@@ -37,7 +47,14 @@ export default function ChordPicker({ onCancel, onConfirm }: Props) {
   const searching = query.trim().length > 0;
 
   return (
-    <div className="screen picker">
+    /* --kb lifts the dock and shortens the list by however much of the screen
+       the keyboard is covering — searching is the one thing here that opens
+       one, and results underneath it can't be reached. */
+    <div
+      className="screen picker"
+      ref={screen}
+      style={{ '--kb': `${keyboardInset}px` } as React.CSSProperties}
+    >
       <header className="picker__top">
         <button className="iconbtn" type="button" aria-label="Back" onClick={onCancel}>
           <BackIcon />
@@ -121,7 +138,11 @@ export default function ChordPicker({ onCancel, onConfirm }: Props) {
             className="chip chip--solid"
             type="button"
             disabled={silent}
-            onClick={() => onConfirm({ id: newId(), name: detected.name ?? '', shape })}
+            /* Keeps its id when it is an edit, so it goes back where it was
+               instead of arriving at the end as a new chord. */
+            onClick={() =>
+              onConfirm({ id: initial?.id ?? newId(), name: detected.name ?? '', shape })
+            }
           >
             Confirm
           </button>

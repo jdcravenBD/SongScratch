@@ -1179,11 +1179,21 @@ input {
   white-space: pre-wrap;
 }
 
-/* Empty blocks say what they're for rather than sitting there blank. */
+/* Only the title says what it is; the rest of the sheet stays blank paper. */
 .ly [data-ph]:empty::before {
   content: attr(data-ph);
   color: var(--text-3);
   pointer-events: none;
+}
+
+/*
+ * Except the first lyric line, which holds a line of an older song instead of a
+ * label — so it is set as the thing it stands in for: lyric size already, and
+ * italic to mark it as not yours. Only the ::before is slanted, so what gets
+ * typed over it comes out upright.
+ */
+.ly .ly-lyrics[data-ph]:empty::before {
+  font-style: italic;
 }
 
 /* ------------------------------------------------------------------- dock -- */
@@ -1463,6 +1473,25 @@ input {
   color: var(--danger);
 }
 
+/* Listed but not working yet — after the danger rule, so it wins on both. */
+.menu__item:disabled {
+  color: var(--text-3);
+}
+
+.menu__item:disabled:hover {
+  background: none;
+}
+
+/*
+ * Anchored to whatever was held rather than to a corner of the screen, so its
+ * left/top are set from the measured position (see ChordMenu).
+ */
+.menu__panel--chord {
+  top: auto;
+  right: auto;
+  min-width: 208px;
+}
+
 /* ============================================================ voice memos ==
  * A song's recordings. Each row opens to a waveform you scrub directly — the
  * waveform *is* the scrubber, so there is no second progress track to read.
@@ -1510,12 +1539,20 @@ input {
   cursor: pointer;
 }
 
-/* Selection dot slides the row's contents across, as in the song list. */
+/*
+ * Selection dot slides the row's contents across, as in the song list.
+ *
+ * Closed it takes no width — but a flex `gap` still applies on *both* sides of
+ * a zero-width item, which quietly held the name 24px off the grip against the
+ * chord sections' 12. The negative margin cancels the gap it isn't using, so
+ * the two lists line up until select mode really needs the room.
+ */
 .memo__check {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   width: 0;
+  margin-left: -12px;
   margin-right: 0;
   opacity: 0;
   overflow: hidden;
@@ -1528,6 +1565,7 @@ input {
 
 .memo__check.is-shown {
   width: 21px;
+  margin-left: 0;
   margin-right: 12px;
   opacity: 1;
 }
@@ -2032,6 +2070,12 @@ input {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  /* Held down it opens a menu, so iOS must not offer its own selection callout
+     over the top of ours. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .diagram {
@@ -2094,7 +2138,9 @@ input {
 
 .picker {
   --nav-h: 62px;
-  --dock-h: 130px;
+  /* Grows by whatever the keyboard is covering, so the results list ends above
+     it rather than continuing on behind it. */
+  --dock-h: calc(130px + var(--kb, 0px));
   z-index: 50;
   background: var(--bg);
   animation: editor-in 0.24s var(--ease) both;
@@ -2158,15 +2204,19 @@ input {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Rides the keyboard, like the format bar. The field is what opens it, so
+     letting it stay put would hide the thing being typed into. */
+  bottom: var(--kb, 0px);
   z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
   /* No side padding: the field and the buttons size against the same full
-     width the neck does, so their percentages mean the same thing. */
-  padding: 8px var(--safe-r) var(--dock-floor) var(--safe-l);
+     width the neck does, so their percentages mean the same thing. The floor
+     clears the home indicator, which the keyboard covers itself. */
+  padding: 8px var(--safe-r) max(6px, calc(var(--dock-floor) - var(--kb, 0px)))
+    var(--safe-l);
 }
 
 /*
