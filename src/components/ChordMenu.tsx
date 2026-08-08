@@ -9,6 +9,7 @@ const EDGE = 12;
 interface Props {
   held: HeldChord;
   onEdit: () => void;
+  onRearrange: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -21,7 +22,7 @@ interface Props {
  * not to the screen. It is placed under the chord where there is room and above
  * it where there isn't, measured before the first paint so it never jumps.
  */
-export default function ChordMenu({ held, onEdit, onDelete, onClose }: Props) {
+export default function ChordMenu({ held, onEdit, onRearrange, onDelete, onClose }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -52,10 +53,7 @@ export default function ChordMenu({ held, onEdit, onDelete, onClose }: Props) {
           <ComposeIcon />
           <span>Edit</span>
         </button>
-        {/* Reserved: dragging chords within a section comes next. Shown
-            disabled rather than hidden, so the menu doesn't change shape when
-            it starts working. */}
-        <button className="menu__item" type="button" disabled>
+        <button className="menu__item" type="button" onClick={onRearrange}>
           <GripIcon />
           <span>Rearrange</span>
         </button>

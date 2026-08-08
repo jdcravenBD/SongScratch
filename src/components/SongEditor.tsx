@@ -424,6 +424,10 @@ export default function SongEditor({ id, onBack }: Props) {
             chords.startEdit(chords.held!.sectionId, chords.held!.chord);
             chords.release();
           }}
+          onRearrange={() => {
+            chords.setArranging(chords.held!.sectionId);
+            chords.release();
+          }}
           onDelete={async () => {
             const { sectionId, chord } = chords.held!;
             chords.release();

@@ -67,6 +67,9 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
               onHoldChord={(sectionId, chord, at) =>
                 chords.hold({ sectionId, chord, at })
               }
+              arranging={chords.arranging === section.id}
+              onReorderChords={(id, from, to) => void chords.reorderChords(id, from, to)}
+              onDoneArranging={() => chords.setArranging(null)}
               onGrip={begin}
             />
           ))}

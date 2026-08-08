@@ -2109,6 +2109,77 @@ input {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * The chord itself, inside the box that gets moved. Two elements because a
+ * running animation beats an inline transform: the jiggle would swallow the
+ * offset that carries a chord to its new place, so the wiggle goes on the
+ * inside and the moving on the outside.
+ */
+.chord__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ------------------------------------------------------------- arranging --
+ * Apple's home screen, on a rail of fingerings: everything jiggles to say it
+ * is loose, and any of them can be picked up and dropped somewhere else in the
+ * run. A press anywhere else puts it back down.
+ */
+
+@keyframes jiggle {
+  0% {
+    transform: rotate(-1.1deg) translateY(-0.5px);
+  }
+  50% {
+    transform: rotate(1.1deg) translateY(0.5px);
+  }
+  100% {
+    transform: rotate(-1.1deg) translateY(-0.5px);
+  }
+}
+
+.chords.is-arranging .chord__inner {
+  animation: jiggle 0.27s ease-in-out infinite;
+}
+
+/* Out of step with each other, or the rail pulses as one object. */
+.chords.is-arranging .chord:nth-child(2n) .chord__inner {
+  animation-duration: 0.31s;
+  animation-delay: -0.11s;
+}
+
+.chords.is-arranging .chord:nth-child(3n) .chord__inner {
+  animation-duration: 0.24s;
+  animation-delay: -0.17s;
+}
+
+/* The add slot is not part of the run being arranged, so it holds still. */
+.chords.is-arranging .chord--add .chord__inner,
+.chords.is-arranging .chord--add {
+  animation: none;
+}
+
+/* While it is loose, a finger on a chord moves it — it must not also scroll
+   the list out from under itself. */
+.chords.is-arranging .chord--held {
+  touch-action: none;
+  cursor: grab;
+  transition: transform 0.2s var(--ease);
+}
+
+/* The one under the finger keeps up with it, and rides above the rest. */
+.chords.is-arranging .chord--held.is-lifted {
+  transition: none;
+  cursor: grabbing;
+}
+
+.chords.is-arranging .chord--held.is-lifted .chord__inner {
+  animation: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55));
+}
+
 .diagram {
   width: 74px;
   height: 92px;
@@ -2622,6 +2693,12 @@ input {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The rule above would freeze an endless animation on its first frame — and
+     this one's first frame is tilted. Stop it properly instead. */
+  .chords.is-arranging .chord__inner {
+    animation: none !important;
   }
 }
 

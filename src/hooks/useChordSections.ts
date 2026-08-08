@@ -51,6 +51,11 @@ export interface ChordSections {
   /** Puts the picker's chord back — in place when editing, at the end when new. */
   savePick: (chord: Chord) => Promise<void>;
   removeChord: (sectionId: string, chordId: string) => Promise<void>;
+  /** Move a chord within its section. */
+  reorderChords: (sectionId: string, from: number, to: number) => Promise<void>;
+  /** The section whose chords are jiggling, ready to be moved, or null. */
+  arranging: string | null;
+  setArranging: (sectionId: string | null) => void;
   /** The chord being held down, and where, or null when no menu is open. */
   held: HeldChord | null;
   hold: (held: HeldChord) => void;
@@ -76,6 +81,7 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [picking, setPicking] = useState<Picking | null>(null);
   const [held, setHeld] = useState<HeldChord | null>(null);
+  const [arranging, setArranging] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -178,6 +184,22 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit, picking],
   );
 
+  const reorderChords = useCallback(
+    (sectionId: string, from: number, to: number) =>
+      commit((current) =>
+        current.map((s) => {
+          if (s.id !== sectionId || from === to || from < 0 || from >= s.chords.length) {
+            return s;
+          }
+          const chords = [...s.chords];
+          const [moved] = chords.splice(from, 1);
+          chords.splice(Math.max(0, Math.min(chords.length, to)), 0, moved);
+          return { ...s, chords };
+        }),
+      ),
+    [commit],
+  );
+
   const removeChord = useCallback(
     (sectionId: string, chordId: string) =>
       commit((current) =>
@@ -190,9 +212,19 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit],
   );
 
+  /**
+   * Arranging belongs to one open section, so it ends the moment that section
+   * is no longer the open one.
+   */
+  const expand = useCallback((id: string | null) => {
+    setExpandedId(id);
+    setArranging((cur) => (cur === id ? cur : null));
+  }, []);
+
   /** Picking several at once, as the song list does. */
   const enterSelect = useCallback((id?: string) => {
     setExpandedId(null);
+    setArranging(null);
     setRevealedId(null);
     setSelectMode(true);
     setSelected(id ? new Set([id]) : new Set());
@@ -230,11 +262,14 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     cancelPick: () => setPicking(null),
     savePick,
     removeChord,
+    reorderChords,
+    arranging,
+    setArranging,
     held,
     hold: setHeld,
     release: () => setHeld(null),
     expandedId,
-    setExpandedId,
+    setExpandedId: expand,
     revealedId,
     setRevealedId,
   };

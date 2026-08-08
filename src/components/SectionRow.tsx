@@ -4,8 +4,8 @@ import type { Chord, ChordSection } from '../types';
 import type { ChordAnchor } from '../hooks/useChordSections';
 import { caretIndexAtX, fontOf } from '../lib/caret';
 import { useSwipeGuard } from '../hooks/useSwipeGuard';
-import ChordDiagram from './ChordDiagram';
-import { GripIcon, PlusIcon, SelectDot, TrashIcon } from './icons';
+import SectionChords from './SectionChords';
+import { GripIcon, SelectDot, TrashIcon } from './icons';
 
 const REVEAL = 78;
 const SLOP = 8;
@@ -33,6 +33,10 @@ interface Props {
   onAddChord: (sectionId: string) => void;
   /** A chord held down long enough to want its menu, and where it sits. */
   onHoldChord: (sectionId: string, chord: Chord, at: ChordAnchor) => void;
+  /** True while this section's chords are being arranged. */
+  arranging: boolean;
+  onReorderChords: (sectionId: string, from: number, to: number) => void;
+  onDoneArranging: () => void;
   /** Starts a reorder. Given where the press began, not where it is now. */
   onGrip: (index: number, startY: number) => void;
 }
@@ -62,6 +66,9 @@ export default function SectionRow({
   onReveal,
   onAddChord,
   onHoldChord,
+  arranging,
+  onReorderChords,
+  onDoneArranging,
   onGrip,
 }: Props) {
   const host = useRef<HTMLLIElement>(null);
@@ -81,8 +88,6 @@ export default function SectionRow({
   const gripPress = useRef({ y: 0, id: -1, armed: false });
   /** Where in the name the finger landed, so the caret can start there. */
   const caretAt = useRef<number | null>(null);
-  /** A press on a chord: held still and long enough, it opens that chord's menu. */
-  const chordPress = useRef({ x: 0, y: 0, id: -1, timer: 0 });
 
   // While a sideways swipe owns the gesture, the list must not scroll.
   useSwipeGuard(head, () => axis.current === 'x');
@@ -216,45 +221,6 @@ export default function SectionRow({
     }
   };
 
-  const endChordPress = () => {
-    if (chordPress.current.timer) {
-      window.clearTimeout(chordPress.current.timer);
-      chordPress.current.timer = 0;
-    }
-  };
-
-  const onChordDown = (e: ReactPointerEvent, chord: Chord) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    // Held now: currentTarget only means anything during the dispatch itself.
-    const el = e.currentTarget as HTMLElement;
-    endChordPress();
-    chordPress.current = {
-      x: e.clientX,
-      y: e.clientY,
-      id: e.pointerId,
-      timer: window.setTimeout(() => {
-        chordPress.current.timer = 0;
-        const box = el.getBoundingClientRect();
-        // Against the screen, which is what the menu is positioned inside.
-        const screen = el.closest('.screen')?.getBoundingClientRect();
-        onHoldChord(section.id, chord, {
-          x: box.left + box.width / 2 - (screen?.left ?? 0),
-          top: box.top - (screen?.top ?? 0),
-          bottom: box.bottom - (screen?.top ?? 0),
-        });
-      }, LONG_MS),
-    };
-  };
-
-  const onChordMove = (e: ReactPointerEvent) => {
-    const press = chordPress.current;
-    if (press.id !== e.pointerId || !press.timer) return;
-    // A finger on its way somewhere — scrolling the list, most likely.
-    if (Math.abs(e.clientX - press.x) > SLOP || Math.abs(e.clientY - press.y) > SLOP) {
-      endChordPress();
-    }
-  };
-
   const commitRename = () => {
     const value = nameInput.current?.value.trim();
     setRenaming(false);
@@ -369,38 +335,14 @@ export default function SectionRow({
 
         {expanded && (
           <div className="sect__body">
-            {/* The add button is the next slot in the progression, shaped and
-                sized like the fingerings it sits beside, so the row reads as
-                one continuous run with an empty place at the end. */}
-            <div className="chords">
-              {/* Holding a fingering opens what can be done with it, the way
-                  the ellipsis opens what can be done with the screen. */}
-              {section.chords.map((chord) => (
-                <div
-                  className="chord"
-                  key={chord.id}
-                  onPointerDown={(e) => onChordDown(e, chord)}
-                  onPointerMove={onChordMove}
-                  onPointerUp={endChordPress}
-                  onPointerCancel={endChordPress}
-                >
-                  <ChordDiagram shape={chord.shape} />
-                  <span className="chord__name">{chord.name}</span>
-                </div>
-              ))}
-
-              <button
-                className="chord chord--add"
-                type="button"
-                aria-label="Add chord"
-                onClick={() => onAddChord(section.id)}
-              >
-                <span className="chord__slot">
-                  <PlusIcon size={22} />
-                </span>
-                <span className="chord__name">Add</span>
-              </button>
-            </div>
+            <SectionChords
+              section={section}
+              arranging={arranging}
+              onHoldChord={onHoldChord}
+              onAddChord={onAddChord}
+              onReorder={onReorderChords}
+              onDone={onDoneArranging}
+            />
           </div>
         )}
       </div>
