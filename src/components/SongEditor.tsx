@@ -2,7 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import type { Song } from '../types';
 import { deleteSongs, getSong, putSong } from '../db/songs';
-import { extractMeta, setBlockKind, type BlockKind } from '../lib/lyrics';
+import {
+  blankDoc,
+  extractMeta,
+  isBlankDoc,
+  markBlanks,
+  setBlockKind,
+  type BlockKind,
+} from '../lib/lyrics';
 import { newId } from '../lib/id';
 import { useEdgeBack } from '../hooks/useEdgeBack';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
@@ -22,6 +29,7 @@ import {
   EllipsisIcon,
   PinIcon,
   RedoIcon,
+  SelectIcon,
   TrashIcon,
   UndoIcon,
 } from './icons';
@@ -58,8 +66,11 @@ export default function SongEditor({ id, onBack }: Props) {
   const docRef = useRef<HTMLDivElement>(null);
   const screenRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef(0);
+  const titleTimer = useRef(0);
   /** Latest unsaved HTML, so leaving the screen can flush it. */
   const pending = useRef<string | null>(null);
+  /** Same for the title, which saves on its own. */
+  const pendingTitle = useRef<string | null>(null);
   const keyboardInset = useKeyboardInset();
   const voice = useVoiceMemos(id, tab === 'voice');
   const chords = useChordSections(id, tab === 'chords');
@@ -87,7 +98,6 @@ export default function SongEditor({ id, onBack }: Props) {
       const next: Song = {
         ...current,
         lyrics: html,
-        title: meta.title,
         tuning: meta.tuning || current.tuning,
         description: meta.description,
         sectionCount: meta.sectionCount,
@@ -115,24 +125,58 @@ export default function SongEditor({ id, onBack }: Props) {
     [commit],
   );
 
+  /**
+   * The title, on its own timer. It is a field on the song rather than part of
+   * the page, so it never goes through the document's save at all.
+   */
+  const commitTitle = useCallback(
+    async (title: string) => {
+      const current = await getSong(id);
+      if (!current) return;
+      await putSong({ ...current, title, updatedAt: Date.now() });
+      setSong((prev) => (prev ? { ...prev, title } : prev));
+    },
+    [id],
+  );
+
+  const handleTitle = useCallback(
+    (title: string) => {
+      pendingTitle.current = title;
+      window.clearTimeout(titleTimer.current);
+      titleTimer.current = window.setTimeout(() => {
+        const next = pendingTitle.current;
+        pendingTitle.current = null;
+        if (next != null) void commitTitle(next);
+      }, SAVE_AFTER);
+    },
+    [commitTitle],
+  );
+
   // Never leave an edit behind on the way out.
   useEffect(
     () => () => {
       window.clearTimeout(saveTimer.current);
+      window.clearTimeout(titleTimer.current);
       if (pending.current != null) void commit(pending.current);
+      if (pendingTitle.current != null) void commitTitle(pendingTitle.current);
     },
-    [commit],
+    [commit, commitTitle],
   );
 
   const finishEditing = () => {
     setEditing(false);
-    docRef.current?.blur();
-    const html = docRef.current?.innerHTML;
-    if (html != null) {
-      window.clearTimeout(saveTimer.current);
-      pending.current = null;
-      void commit(html);
-    }
+    const el = docRef.current;
+    el?.blur();
+    if (!el) return;
+    // Everything gone: put the empty sheet back, ghost line and all, rather
+    // than leaving a page with nothing on it and no way to tell it apart from
+    // one that failed to load. Only on the way out — rebuilding the document
+    // mid-sentence would take the caret and the undo stack with it.
+    if (isBlankDoc(el)) el.innerHTML = blankDoc(id);
+    markBlanks(el);
+    window.clearTimeout(saveTimer.current);
+    pending.current = null;
+    void commit(el.innerHTML);
   };
 
   /** Keeps the caret alive across a toolbar press. */
@@ -205,6 +249,7 @@ export default function SongEditor({ id, onBack }: Props) {
               docRef={docRef}
               onRequestEdit={() => setEditing(true)}
               onInput={handleInput}
+              onTitle={handleTitle}
               onLeave={finishEditing}
             />
           </>
@@ -259,53 +304,62 @@ export default function SongEditor({ id, onBack }: Props) {
             onClick={() => setMenuOpen(false)}
           />
           <div className="menu__panel">
-            {/* What the menu offers depends on which tab is showing: the bulk
-                actions belong to the tab, not to the song. */}
+            {/* What the menu leads with depends on which tab is showing: it
+                acts on the tab, not on the song. Each one is "Select" — the
+                lists enter the same picking mode the song list has, and the
+                page, having no rows to pick, selects its words instead. */}
             {tab === 'chords' && (
               <button
-                className="menu__item menu__item--danger"
+                className="menu__item"
                 type="button"
                 disabled={chords.sections.length === 0}
-                onClick={async () => {
-                  await chords.clearAll();
+                onClick={() => {
+                  chords.enterSelect();
                   setMenuOpen(false);
                 }}
               >
-                <TrashIcon />
-                <span>Delete All Sections</span>
+                <SelectIcon />
+                <span>Select</span>
               </button>
             )}
 
             {tab === 'lyrics' && (
               <button
-                className="menu__item menu__item--danger"
+                className="menu__item"
                 type="button"
                 onClick={() => {
-                  const el = docRef.current;
-                  if (el) {
-                    el.innerHTML = '';
-                    handleInput('');
-                  }
                   setMenuOpen(false);
+                  setEditing(true);
+                  // After the effect that focuses the page and drops a caret in
+                  // it, or that caret would collapse this selection again.
+                  requestAnimationFrame(() => {
+                    const el = docRef.current;
+                    const sel = window.getSelection();
+                    if (!el || !sel) return;
+                    const all = document.createRange();
+                    all.selectNodeContents(el);
+                    sel.removeAllRanges();
+                    sel.addRange(all);
+                  });
                 }}
               >
-                <TrashIcon />
-                <span>Clear Lyrics</span>
+                <SelectIcon />
+                <span>Select</span>
               </button>
             )}
 
             {tab === 'voice' && (
               <button
-                className="menu__item menu__item--danger"
+                className="menu__item"
                 type="button"
                 disabled={voice.memos.length === 0}
-                onClick={async () => {
-                  await voice.removeMany(voice.memos.map((m) => m.id));
+                onClick={() => {
+                  voice.enterSelect();
                   setMenuOpen(false);
                 }}
               >
-                <TrashIcon />
-                <span>Delete All Recordings</span>
+                <SelectIcon />
+                <span>Select</span>
               </button>
             )}
 

@@ -1117,10 +1117,39 @@ input {
   -webkit-backdrop-filter: var(--glass-blur);
 }
 
-/* ------------------------------------------------------------ the song sheet -- */
+/* ------------------------------------------------------------ the song sheet --
+ * The title is a field of its own above the page, not a block inside it: it is
+ * the song's name, the same string the list draws, so it is renamed rather
+ * than written — no formatting, and no format bar while it has focus.
+ */
+
+.ly__title {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 20px calc(var(--text-edge) + var(--safe-r)) 1px
+    calc(var(--text-edge) + var(--safe-l));
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  /* Grown to fit by hand (see LyricsTab) — it wraps rather than scrolling
+     sideways, and never shows a scrollbar of its own. */
+  resize: none;
+  overflow: hidden;
+  outline: none;
+}
+
+.ly__title::placeholder {
+  color: var(--text-3);
+}
 
 .ly {
-  padding: 20px calc(var(--text-edge) + var(--safe-r)) 28px
+  padding: 0 calc(var(--text-edge) + var(--safe-r)) 28px
     calc(var(--text-edge) + var(--safe-l));
   outline: none;
   cursor: text;
@@ -1179,21 +1208,21 @@ input {
   white-space: pre-wrap;
 }
 
-/* Only the title says what it is; the rest of the sheet stays blank paper. */
-.ly [data-ph]:empty::before {
+/*
+ * The one placeholder left in the page: a line of someone else's song where
+ * the first lyric goes. Set as the thing it stands in for — lyric size
+ * already, and italic to mark it as not yours. Only the ::before is slanted,
+ * so what gets typed over it comes out upright.
+ *
+ * `.is-blank` rather than `:empty`, because emptying a block in a
+ * contenteditable leaves a <br> behind — the block stops being empty at
+ * exactly the moment the line is wanted back. See markBlanks.
+ */
+.ly [data-ph].is-blank::before {
   content: attr(data-ph);
   color: var(--text-3);
-  pointer-events: none;
-}
-
-/*
- * Except the first lyric line, which holds a line of an older song instead of a
- * label — so it is set as the thing it stands in for: lyric size already, and
- * italic to mark it as not yours. Only the ::before is slanted, so what gets
- * typed over it comes out upright.
- */
-.ly .ly-lyrics[data-ph]:empty::before {
   font-style: italic;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------------- dock -- */
@@ -1547,7 +1576,8 @@ input {
  * chord sections' 12. The negative margin cancels the gap it isn't using, so
  * the two lists line up until select mode really needs the room.
  */
-.memo__check {
+.memo__check,
+.sect__check {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -1563,7 +1593,8 @@ input {
     opacity 0.18s ease;
 }
 
-.memo__check.is-shown {
+.memo__check.is-shown,
+.sect__check.is-shown {
   width: 21px;
   margin-left: 0;
   margin-right: 12px;
@@ -2138,9 +2169,15 @@ input {
 
 .picker {
   --nav-h: 62px;
-  /* Grows by whatever the keyboard is covering, so the results list ends above
-     it rather than continuing on behind it. */
-  --dock-h: calc(130px + var(--kb, 0px));
+  --dock-h: 130px;
+  /*
+   * The screen ends where the keyboard begins. Padding the list instead only
+   * moves its *contents* up — the scroll container still runs on behind the
+   * keyboard, so the last row can never be scrolled into view. Taking the
+   * bottom off the screen makes every child, list and dock alike, live inside
+   * what is actually visible.
+   */
+  bottom: var(--kb, 0px);
   z-index: 50;
   background: var(--bg);
   animation: editor-in 0.24s var(--ease) both;
@@ -2204,9 +2241,7 @@ input {
   position: absolute;
   left: 0;
   right: 0;
-  /* Rides the keyboard, like the format bar. The field is what opens it, so
-     letting it stay put would hide the thing being typed into. */
-  bottom: var(--kb, 0px);
+  bottom: 0;
   z-index: 20;
   display: flex;
   flex-direction: column;

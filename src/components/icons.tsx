@@ -233,6 +233,16 @@ export function Forward10Icon({ size = 26, className }: IconProps) {
 }
 
 /** Reorder grip — the bars you drag a section by. */
+/** Picking several at once — the same mark the rows show, at menu size. */
+export function SelectIcon({ size = 20, className }: IconProps) {
+  return (
+    <svg {...base} width={size} height={size} className={className}>
+      <circle cx="12" cy="12" r="8.4" />
+      <path d="M8.4 12.2l2.5 2.5 4.7-4.9" />
+    </svg>
+  );
+}
+
 export function GripIcon({ size = 20, className }: IconProps) {
   return (
     <svg {...base} width={size} height={size} className={className} strokeWidth={1.9}>

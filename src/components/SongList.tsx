@@ -4,6 +4,7 @@ import { groupSongs } from '../lib/format';
 import ScrollArea from './ScrollArea';
 import SongRow from './SongRow';
 import {
+  BackIcon,
   CloseIcon,
   ComposeIcon,
   DuplicateIcon,
@@ -101,13 +102,20 @@ export default function SongList({ onOpen }: { onOpen: (id: string) => void }) {
     <div className={`screen${selectMode ? ' is-selecting' : ''}`}>
       <header className="navbar" ref={navRef}>
         <div className="navbar__slot">
-          {selectMode && (
+          {selectMode ? (
             <button
               className="chip"
               type="button"
               onClick={() => setSelected(allSelected ? new Set() : new Set(matches?.map((s) => s.id)))}
             >
               {allSelected ? 'Deselect All' : 'Select All'}
+            </button>
+          ) : (
+            /* This is as far back as the app goes. The button is here so the
+               top of the screen doesn't change shape on the way in and out of
+               a song — dead, and visibly so. */
+            <button className="iconbtn" type="button" disabled aria-hidden="true" tabIndex={-1}>
+              <BackIcon />
             </button>
           )}
         </div>

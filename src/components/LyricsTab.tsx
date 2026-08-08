@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import type { MouseEvent, RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
 import type { Song } from '../types';
-import { defaultDoc } from '../lib/lyrics';
+import { defaultDoc, markBlanks, stripTitle } from '../lib/lyrics';
 
 interface Props {
   song: Song;
@@ -10,6 +10,8 @@ interface Props {
   docRef: RefObject<HTMLDivElement | null>;
   onRequestEdit: () => void;
   onInput: (html: string) => void;
+  /** The title is its own field and its own save — see onInput for the page. */
+  onTitle: (title: string) => void;
   /** Focus left the page — iOS's own keyboard "Done" among other ways out. */
   onLeave: () => void;
 }
@@ -30,11 +32,13 @@ export default function LyricsTab({
   docRef,
   onRequestEdit,
   onInput,
+  onTitle,
   onLeave,
 }: Props) {
   /** Where the user clicked, held until the element is actually editable. */
   const pendingCaret = useRef<{ x: number; y: number } | null>(null);
   const loadedFor = useRef<string | null>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   /**
    * When this page appeared. The tap that opened the song finishes *after* the
    * editor has rendered underneath the finger, so its click lands here and
@@ -48,9 +52,18 @@ export default function LyricsTab({
   useEffect(() => {
     const el = docRef.current;
     if (!el || loadedFor.current === song.id) return;
-    el.innerHTML = song.lyrics?.trim() ? song.lyrics : defaultDoc(song);
+    // stripTitle: documents written before the title moved out still carry one.
+    el.innerHTML = song.lyrics?.trim() ? stripTitle(song.lyrics) : defaultDoc(song);
+    markBlanks(el);
     loadedFor.current = song.id;
   }, [song, docRef]);
+
+  // A title as long as the song sheet is wide has to wrap, so it grows with
+  // what is in it rather than scrolling sideways out of sight.
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (el) grow(el);
+  }, [song.id]);
 
   // Entering edit mode: take focus and drop the caret where it was asked for.
   useEffect(() => {
@@ -94,23 +107,60 @@ export default function LyricsTab({
   };
 
   return (
-    <div
-      ref={docRef}
-      className={`ly${editing ? ' is-editing' : ''}`}
-      contentEditable={editing}
-      suppressContentEditableWarning
-      spellCheck={false}
-      role={editing ? 'textbox' : undefined}
-      aria-multiline={editing || undefined}
-      aria-label="Lyrics"
-      onClick={handleClick}
-      onInput={(e) => onInput(e.currentTarget.innerHTML)}
-      // Toolbar presses suppress mousedown, so they never blur this — a blur
-      // really does mean the user has left, including via the keyboard's own
-      // Done button on iOS. Treat it as finishing.
-      onBlur={() => editing && onLeave()}
-    />
+    <>
+      {/*
+       * The title is deliberately not part of the document. It is the song's
+       * name — the same string the list shows — so it is renamed, not written:
+       * plain text only, no formatting, and no format bar while it has focus.
+       */}
+      <textarea
+        ref={titleRef}
+        className="ly__title"
+        defaultValue={song.title}
+        rows={1}
+        placeholder="Title"
+        spellCheck={false}
+        aria-label="Song title"
+        onInput={(e) => {
+          grow(e.currentTarget);
+          onTitle(e.currentTarget.value);
+        }}
+        onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
+          // One line of thought; Enter finishes it rather than starting a verse.
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            e.currentTarget.blur();
+          }
+        }}
+      />
+
+      <div
+        ref={docRef}
+        className={`ly${editing ? ' is-editing' : ''}`}
+        contentEditable={editing}
+        suppressContentEditableWarning
+        spellCheck={false}
+        role={editing ? 'textbox' : undefined}
+        aria-multiline={editing || undefined}
+        aria-label="Lyrics"
+        onClick={handleClick}
+        onInput={(e) => {
+          markBlanks(e.currentTarget);
+          onInput(e.currentTarget.innerHTML);
+        }}
+        // Toolbar presses suppress mousedown, so they never blur this — a blur
+        // really does mean the user has left, including via the keyboard's own
+        // Done button on iOS. Treat it as finishing.
+        onBlur={() => editing && onLeave()}
+      />
+    </>
   );
+}
+
+/** Height to fit, in one measurement — auto first, or it can only ever grow. */
+function grow(el: HTMLTextAreaElement): void {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
 }
 
 /**

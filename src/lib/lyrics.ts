@@ -59,59 +59,105 @@ export function classFor(kind: BlockKind): string {
 }
 
 /**
- * A line of an older song, sitting where the first lyric goes until something
- * is written over it.
+ * The line sitting where the first lyric goes until something is written over
+ * it — someone else's song, in the sense that it is not yours yet.
  *
- * All of them are traditional or long out of copyright — these ship inside the
- * app and go to the App Store with it, which no modern lyric could.
+ * **These are written for this app, not quoted from anywhere.** Placeholder
+ * text ships inside the binary and goes to the App Store with it, so a line
+ * from a real record would be redistributing that record's lyrics. Swap the
+ * list for whatever you like; nothing else needs to change.
  */
 const GHOSTS = [
-  'There is a house in New Orleans',
-  'I am a poor wayfaring stranger',
-  'Oh Shenandoah, I long to hear you',
-  'Are you going to Scarborough Fair',
-  'The water is wide, I cannot get over',
-  'In the pines, where the sun never shines',
-  'Hang down your head, Tom Dooley',
-  'I am a man of constant sorrow',
-  'Frankie and Johnny were lovers',
-  'Down in the valley, valley so low',
-  'Love, oh love, oh careless love',
-  'I went down to St. James Infirmary',
-  'Amazing grace, how sweet the sound',
-  'Swing low, sweet chariot',
-  'Alas, my love, you do me wrong',
-  'I come from Alabama with a banjo on my knee',
-  'In Scarlet Town where I was born',
-  'Oh, the cuckoo, she is a pretty bird',
-  'John Henry was a little baby boy',
-  'Shady Grove, my little love',
+  'She keeps the radio on all night',
+  'Meet me where the streetlights end',
+  'We were kings of a small town summer',
+  'I still drive past your street sometimes',
+  'Nothing here has changed but me',
+  'Hold the line for one more song',
+  'The last train out is always late',
+  'You never said goodbye out loud',
+  'Every road looks like it leads to you',
+  'I was young enough to mean it',
+  'Dance until the record skips',
+  'Neon on the wet road home',
+  'All the words I never sent',
+  'Someone else is wearing your jacket now',
+  'We had nothing and we spent it all',
+  'Turn it up until the walls give in',
+  'Sleep is just another town I have left',
+  'Your name is still in my handwriting',
+  'Wait for me under the water tower',
+  'Nobody is coming to save this town',
 ];
 
 /**
- * Which line a song gets. Drawn from its id rather than at random, so a song
- * keeps the same one every time it is opened — a placeholder that changed
- * underneath you would read as the app losing your words.
+ * Which line a song gets, quoted and trailing off the way a half-remembered
+ * one does. Drawn from the song's id rather than at random, so it keeps the
+ * same line every time it is opened — a placeholder that changed underneath
+ * you would read as the app losing your words.
  */
 export function ghostLine(seed: string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  return GHOSTS[hash % GHOSTS.length];
+  return `“${GHOSTS[hash % GHOSTS.length]}…”`;
+}
+
+/**
+ * The empty song sheet: the blocks it is built from, with nothing in them.
+ *
+ * No section heading is written in — a song that starts by telling you it has
+ * a verse has already made a decision for you. The title isn't here either; it
+ * belongs to the song record and is edited on its own, above this.
+ */
+export function blankDoc(songId: string): string {
+  return [
+    block('tuning'),
+    block('desc'),
+    block('chords'),
+    block('lyrics', '', ghostLine(songId)),
+  ].join('');
 }
 
 /**
  * The document a song starts life with: whatever the list already knows about
- * it, and one empty verse to write into.
+ * it, and a line to write over.
  */
 export function defaultDoc(song: Song): string {
   return [
-    block('title', song.title),
     block('tuning', song.tuning ?? ''),
     block('desc', song.description ?? ''),
-    block('section', 'Verse'),
     block('chords'),
     block('lyrics', '', ghostLine(song.id)),
   ].join('');
+}
+
+/**
+ * Drops the title out of a document written before it was moved out of the
+ * page. It lives on the song record now and is edited in its own field, so
+ * leaving it here would show it twice.
+ */
+export function stripTitle(html: string): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll(`.${BLOCK.title}`).forEach((el) => el.remove());
+  return doc.body.innerHTML;
+}
+
+/** True when the page has no words in it — only empty blocks, or nothing. */
+export function isBlankDoc(el: HTMLElement): boolean {
+  return (el.textContent ?? '').trim() === '';
+}
+
+/**
+ * Marks the blocks with nothing in them, so their placeholder shows.
+ *
+ * `:empty` can't do this: emptying a block in a contenteditable leaves a `<br>`
+ * behind, which is a child, so the block stops matching the moment the user
+ * deletes the last character — exactly when the placeholder is wanted back.
+ */
+export function markBlanks(root: HTMLElement): void {
+  for (const child of Array.from(root.children)) {
+    child.classList.toggle('is-blank', (child.textContent ?? '').trim() === '');
+  }
 }
 
 /**
@@ -145,7 +191,6 @@ export function setBlockKind(root: HTMLElement, kind: BlockKind): void {
 }
 
 export interface LyricMeta {
-  title: string;
   tuning: string;
   description: string;
   sectionCount: number;
@@ -153,13 +198,13 @@ export interface LyricMeta {
 
 /**
  * Reads back the handful of things the song list draws, so a row stays true to
- * its document without the list ever having to parse one.
+ * its document without the list ever having to parse one. The title is not
+ * among them — it is its own field now, and is never written from here.
  */
 export function extractMeta(html: string): LyricMeta {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const text = (sel: string) => doc.querySelector(sel)?.textContent?.trim() ?? '';
   return {
-    title: text(`.${BLOCK.title}`),
     tuning: text(`.${BLOCK.tuning}`),
     description: text(`.${BLOCK.desc}`),
     sectionCount: doc.querySelectorAll(`.${BLOCK.section}`).length,

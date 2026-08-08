@@ -5,7 +5,7 @@ import type { ChordAnchor } from '../hooks/useChordSections';
 import { caretIndexAtX, fontOf } from '../lib/caret';
 import { useSwipeGuard } from '../hooks/useSwipeGuard';
 import ChordDiagram from './ChordDiagram';
-import { GripIcon, PlusIcon, TrashIcon } from './icons';
+import { GripIcon, PlusIcon, SelectDot, TrashIcon } from './icons';
 
 const REVEAL = 78;
 const SLOP = 8;
@@ -22,6 +22,10 @@ interface Props {
   /** Non-zero while a reorder is in flight, in px. */
   lift: number;
   dragging: boolean;
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
+  onLongPress: (id: string) => void;
   onExpand: (id: string | null) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
@@ -48,6 +52,10 @@ export default function SectionRow({
   forceClosed,
   lift,
   dragging,
+  selectMode,
+  selected,
+  onToggleSelect,
+  onLongPress,
   onExpand,
   onRename,
   onDelete,
@@ -67,6 +75,8 @@ export default function SectionRow({
   const axis = useRef<'none' | 'x' | 'y'>('none');
   const pid = useRef<number | null>(null);
   const moved = useRef(false);
+  const longTimer = useRef(0);
+  const longFired = useRef(false);
   /** A press on the grip: a tap toggles the row, a drag reorders it. */
   const gripPress = useRef({ y: 0, id: -1, armed: false });
   /** Where in the name the finger landed, so the caret can start there. */
@@ -101,11 +111,11 @@ export default function SectionRow({
   };
 
   useEffect(() => {
-    if (forceClosed && open) {
+    if ((forceClosed || selectMode) && open) {
       setOpen(false);
       slide(0, true);
     }
-  }, [forceClosed, open]);
+  }, [forceClosed, selectMode, open]);
 
   // Start where the finger landed rather than selecting the lot.
   useEffect(() => {
@@ -116,6 +126,13 @@ export default function SectionRow({
     input.setSelectionRange(at, at);
   }, [renaming]);
 
+  const clearLong = () => {
+    if (longTimer.current) {
+      window.clearTimeout(longTimer.current);
+      longTimer.current = 0;
+    }
+  };
+
   const onPointerDown = (e: ReactPointerEvent) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (renaming) return;
@@ -124,6 +141,17 @@ export default function SectionRow({
     base.current = open ? -REVEAL : 0;
     axis.current = 'none';
     moved.current = false;
+    longFired.current = false;
+
+    // Held down, a row starts picking several — the song list's gesture.
+    if (!selectMode) {
+      longTimer.current = window.setTimeout(() => {
+        if (axis.current !== 'x' && !moved.current) {
+          longFired.current = true;
+          onLongPress(section.id);
+        }
+      }, LONG_MS);
+    }
   };
 
   const onPointerMove = (e: ReactPointerEvent) => {
@@ -134,7 +162,8 @@ export default function SectionRow({
     if (axis.current === 'none') {
       if (Math.abs(dx) > SLOP || Math.abs(dy) > SLOP) {
         moved.current = true;
-        if (Math.abs(dx) > Math.abs(dy)) {
+        clearLong();
+        if (Math.abs(dx) > Math.abs(dy) && !selectMode) {
           axis.current = 'x';
           try {
             // Captured on the element that owns these handlers, or capture
@@ -162,12 +191,14 @@ export default function SectionRow({
   const onPointerUp = (e: ReactPointerEvent) => {
     if (pid.current !== e.pointerId) return;
     pid.current = null;
+    clearLong();
     const swiped = axis.current === 'x';
     axis.current = 'none';
 
     if (!swiped) {
-      if (moved.current || renaming) return;
-      if (open) close();
+      if (longFired.current || moved.current || renaming) return;
+      if (selectMode) onToggleSelect(section.id);
+      else if (open) close();
       else onExpand(expanded ? null : section.id);
       return;
     }
@@ -290,6 +321,12 @@ export default function SectionRow({
             }}
           >
             <GripIcon />
+          </span>
+
+          {/* Slides the row's contents across in select mode, as the song list
+              and the recordings do. */}
+          <span className={`sect__check${selectMode ? ' is-shown' : ''}`}>
+            <SelectDot on={selected} />
           </span>
 
           <span className="sect__text">

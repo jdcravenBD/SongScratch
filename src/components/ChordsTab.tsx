@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import type { ChordSections } from '../hooks/useChordSections';
 import { useReorder } from '../hooks/useReorder';
 import SectionRow from './SectionRow';
-import { PlusIcon } from './icons';
+import { PlusIcon, TrashIcon } from './icons';
 
 /**
  * The chord progression: a stack of named sections, in playing order.
@@ -25,7 +25,13 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
   return (
     <>
       <div className="hero">
-        <h1 className="hero__title">Chords</h1>
+        <h1 className="hero__title">
+          {chords.selectMode
+            ? chords.selected.size
+              ? `${chords.selected.size} Selected`
+              : 'Select Sections'
+            : 'Chords'}
+        </h1>
         <p className="hero__count">
           {count} {count === 1 ? 'Section' : 'Sections'}
         </p>
@@ -49,6 +55,10 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
               forceClosed={chords.revealedId !== null && chords.revealedId !== section.id}
               lift={i === dragIndex ? dy : liftFor(i)}
               dragging={i === dragIndex}
+              selectMode={chords.selectMode}
+              selected={chords.selected.has(section.id)}
+              onToggleSelect={chords.toggleSelect}
+              onLongPress={chords.enterSelect}
               onExpand={chords.setExpandedId}
               onRename={(id, name) => void chords.rename(id, name)}
               onDelete={(id) => void chords.remove(id)}
@@ -66,8 +76,36 @@ export function ChordsList({ chords }: { chords: ChordSections }) {
   );
 }
 
-/** Sits in the editor's bottom bar above the tabs. */
+/**
+ * Sits in the editor's bottom bar above the tabs — or gives way to the
+ * selection actions while several sections are picked, as the voice tab does.
+ */
 export function ChordsDock({ chords }: { chords: ChordSections }) {
+  if (chords.selectMode) {
+    const ids = [...chords.selected];
+    return (
+      <div className="rec rec--select">
+        <div className="toolbar">
+          <button
+            className="tool tool--danger"
+            type="button"
+            disabled={!ids.length}
+            onClick={async () => {
+              await chords.removeMany(ids);
+              chords.exitSelect();
+            }}
+          >
+            <TrashIcon />
+            <span>Delete</span>
+          </button>
+          <button className="tool" type="button" onClick={chords.exitSelect}>
+            <span className="tool__done">Done</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rec">
       <button className="chip chip--wide" type="button" onClick={() => void chords.add()}>

@@ -44,7 +44,7 @@ const order = (all: Memo[]) =>
   );
 
 /**
- * "Untitled", then "Untitled 2", "Untitled 3"…
+ * "Memo", then "Memo 2", "Memo 3"…
  *
  * Numbered from the highest already in use rather than from the count, so
  * deleting one doesn't hand its name to the next recording made.
@@ -52,10 +52,10 @@ const order = (all: Memo[]) =>
 function nextUntitled(existing: Memo[]): string {
   let highest = 0;
   for (const memo of existing) {
-    const match = /^Untitled(?: (\d+))?$/.exec(memo.name.trim());
+    const match = /^Memo(?: (\d+))?$/.exec(memo.name.trim());
     if (match) highest = Math.max(highest, match[1] ? Number(match[1]) : 1);
   }
-  return highest === 0 ? 'Untitled' : `Untitled ${highest + 1}`;
+  return highest === 0 ? 'Memo' : `Memo ${highest + 1}`;
 }
 
 /**

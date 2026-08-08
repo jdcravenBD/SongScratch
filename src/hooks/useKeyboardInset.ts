@@ -33,12 +33,29 @@ export function useKeyboardInset(): number {
       setInset(hidden > 1 ? hidden : 0);
     };
 
+    /**
+     * The keyboard slides in over a few hundred milliseconds, and iOS does not
+     * reliably fire a resize when it lands — measure once part-way through and
+     * the inset stays stuck at whatever the animation had reached. So a focus
+     * change takes several looks while it settles.
+     */
+    const timers: number[] = [];
+    const settle = () => {
+      update();
+      for (const ms of [60, 160, 300, 500]) timers.push(window.setTimeout(update, ms));
+    };
+
     vv.addEventListener('resize', update);
     vv.addEventListener('scroll', update);
+    window.addEventListener('focusin', settle);
+    window.addEventListener('focusout', settle);
     update();
     return () => {
       vv.removeEventListener('resize', update);
       vv.removeEventListener('scroll', update);
+      window.removeEventListener('focusin', settle);
+      window.removeEventListener('focusout', settle);
+      for (const t of timers) window.clearTimeout(t);
     };
   }, []);
 

@@ -33,10 +33,17 @@ export interface ChordSections {
   add: () => Promise<void>;
   rename: (id: string, name: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  removeMany: (ids: string[]) => Promise<void>;
   /** Move a section from one position in the stack to another. */
   reorder: (from: number, to: number) => Promise<void>;
-  /** Empties the tab — offered from the editor's menu. */
+  /** Empties the tab. */
   clearAll: () => Promise<void>;
+
+  selectMode: boolean;
+  selected: Set<string>;
+  enterSelect: (id?: string) => void;
+  exitSelect: () => void;
+  toggleSelect: (id: string) => void;
   picking: Picking | null;
   startAdd: (sectionId: string) => void;
   startEdit: (sectionId: string, chord: Chord) => void;
@@ -69,6 +76,8 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [picking, setPicking] = useState<Picking | null>(null);
   const [held, setHeld] = useState<HeldChord | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     const song = await getSong(songId);
@@ -98,7 +107,7 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
   );
 
   const add = useCallback(async () => {
-    const section: ChordSection = { id: newId(), name: 'Untitled', chords: [] };
+    const section: ChordSection = { id: newId(), name: 'Section', chords: [] };
     await commit((current) => [...current, sectionNamed(section, current)]);
     setExpandedId(section.id);
   }, [commit]);
@@ -114,6 +123,15 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
       setExpandedId((cur) => (cur === id ? null : cur));
       setRevealedId(null);
       await commit((current) => current.filter((s) => s.id !== id));
+    },
+    [commit],
+  );
+
+  const removeMany = useCallback(
+    async (ids: string[]) => {
+      setExpandedId((cur) => (cur && ids.includes(cur) ? null : cur));
+      setRevealedId(null);
+      await commit((current) => current.filter((s) => !ids.includes(s.id)));
     },
     [commit],
   );
@@ -172,13 +190,40 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
     [commit],
   );
 
+  /** Picking several at once, as the song list does. */
+  const enterSelect = useCallback((id?: string) => {
+    setExpandedId(null);
+    setRevealedId(null);
+    setSelectMode(true);
+    setSelected(id ? new Set([id]) : new Set());
+  }, []);
+
+  const exitSelect = useCallback(() => {
+    setSelectMode(false);
+    setSelected(new Set());
+  }, []);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
   return {
     sections,
     add,
     rename,
     remove,
+    removeMany,
     reorder,
     clearAll,
+    selectMode,
+    selected,
+    enterSelect,
+    exitSelect,
+    toggleSelect,
     picking,
     startAdd: (sectionId: string) => setPicking({ sectionId, chord: null }),
     startEdit: (sectionId: string, chord: Chord) => setPicking({ sectionId, chord }),
@@ -196,14 +241,14 @@ export function useChordSections(songId: string, enabled: boolean): ChordSection
 }
 
 /**
- * "Untitled", then "Untitled 2"… numbered from the highest already in use, so
+ * "Section", then "Section 2"… numbered from the highest already in use, so
  * deleting one doesn't hand its name to the next section made.
  */
 function sectionNamed(section: ChordSection, existing: ChordSection[]): ChordSection {
   let highest = 0;
   for (const s of existing) {
-    const match = /^Untitled(?: (\d+))?$/.exec(s.name.trim());
+    const match = /^Section(?: (\d+))?$/.exec(s.name.trim());
     if (match) highest = Math.max(highest, match[1] ? Number(match[1]) : 1);
   }
-  return { ...section, name: highest === 0 ? 'Untitled' : `Untitled ${highest + 1}` };
+  return { ...section, name: highest === 0 ? 'Section' : `Section ${highest + 1}` };
 }

@@ -89,7 +89,7 @@ export interface Memo {
   id: string;
   /** The song this belongs to. Indexed — a memo is never shown outside its song. */
   songId: string;
-  /** "Untitled" until the user names it. */
+  /** "Memo", "Memo 2"… until the user names it. */
   name: string;
   /** Where the user dragged it to. Absent on memos made before ordering. */
   order?: number;
