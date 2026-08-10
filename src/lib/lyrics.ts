@@ -109,8 +109,17 @@ export function isBlankDoc(el: HTMLElement): boolean {
  * deletes the last character — exactly when the placeholder is wanted back.
  */
 export function markBlanks(root: HTMLElement): void {
+  let seenHint = false;
   for (const child of Array.from(root.children)) {
     child.classList.toggle('is-blank', (child.textContent ?? '').trim() === '');
+    if (!child.hasAttribute('data-ph')) continue;
+    /*
+     * Only the first block may carry the placeholder. Pressing Enter clones
+     * the block it splits, attributes and all, so every new line would come
+     * with its own "Lyrics…" sitting on it.
+     */
+    if (seenHint) child.removeAttribute('data-ph');
+    seenHint = true;
   }
 }
 

@@ -79,15 +79,21 @@ export default function ChordPicker({ initial, leaving, onCancel, onConfirm }: P
             </div>
           ) : (
             <div className="results">
+              {/* Picking a result takes it — searching for a chord by name is
+                  already having chosen it, and being handed back to the neck
+                  to press Confirm was a second decision nobody was making. */}
               {results.map((chord, i) => (
                 <button
                   className="chord"
                   type="button"
                   key={`${chord.name}-${i}`}
                   onClick={() => {
-                    setShape(chord.shape);
-                    setQuery('');
                     field.current?.blur();
+                    onConfirm({
+                      id: initial?.id ?? newId(),
+                      name: chord.name,
+                      shape: chord.shape,
+                    });
                   }}
                 >
                   <ChordDiagram shape={chord.shape} />

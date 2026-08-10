@@ -177,6 +177,18 @@ export default function TrashScreen({ target, leaving, onBack, onRestored }: Pro
         {count > 0 && (
           <div className="toolbar">
             <button
+              className="tool tool--danger"
+              type="button"
+              disabled={!picked}
+              onClick={async () => {
+                await purge(ids);
+                await refresh();
+              }}
+            >
+              <TrashIcon />
+              <span>Delete</span>
+            </button>
+            <button
               className="tool"
               type="button"
               disabled={!picked}
@@ -188,18 +200,6 @@ export default function TrashScreen({ target, leaving, onBack, onRestored }: Pro
             >
               <BackIcon size={20} />
               <span>Restore</span>
-            </button>
-            <button
-              className="tool tool--danger"
-              type="button"
-              disabled={!picked}
-              onClick={async () => {
-                await purge(ids);
-                await refresh();
-              }}
-            >
-              <TrashIcon />
-              <span>Delete</span>
             </button>
           </div>
         )}

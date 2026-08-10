@@ -27,12 +27,16 @@ const HIGHLIGHTS: Array<[string, string]> = [
   ['Red', 'rgba(255, 69, 58, 0.28)'],
 ];
 
-/** The document's sizes, which here are also its roles. */
+/**
+ * The document's sizes. Named for how big they are rather than for what the
+ * sheet uses them for — a size control that says "Chords" is telling you what
+ * to write, and people put whatever they like at whatever size.
+ */
 const SIZES: Array<[BlockKind, string]> = [
   ['title', 'Title'],
-  ['section', 'Section'],
-  ['chords', 'Chords'],
-  ['lyrics', 'Lyrics'],
+  ['section', 'Heading'],
+  ['chords', 'Subheading'],
+  ['lyrics', 'Body'],
 ];
 
 type Panel = 'size' | 'style' | 'highlight' | 'color' | null;

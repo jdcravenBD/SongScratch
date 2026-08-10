@@ -82,7 +82,7 @@
    * floating search sits well inside the inset — matching it means giving up
    * most of the 34pt and keeping only enough to clear the indicator itself.
    */
-  --dock-floor: max(6px, calc(var(--safe-b) - 22px));
+  --dock-floor: max(6px, calc(var(--safe-b) - 26px));
   /* One height for every glass control — chips, icon buttons, the search
      field, the tabs and the format bar all sit on this, so nothing reads as
      slightly the wrong size beside its neighbour. */
@@ -206,8 +206,14 @@ input {
   animation: list-aside var(--screen-ms) var(--ease) forwards;
 }
 
+/*
+ * Its own keyframes rather than the same ones reversed. Swapping the class
+ * doesn't restart an animation that keeps its name — the browser sees the one
+ * that has already finished, and simply reads its end state, so the list
+ * arrived home before it had moved.
+ */
 .songs.is-returning {
-  animation: list-aside var(--screen-ms) var(--ease) reverse backwards;
+  animation: list-return var(--screen-ms) var(--ease) backwards;
 }
 
 @keyframes list-aside {
@@ -216,6 +222,15 @@ input {
   }
   to {
     transform: translateX(-28%);
+  }
+}
+
+@keyframes list-return {
+  from {
+    transform: translateX(-28%);
+  }
+  to {
+    transform: none;
   }
 }
 
@@ -2886,7 +2901,13 @@ input {
   opacity: 0.5;
 }
 
-@media (min-width: 620px) and (min-height: 560px) {
+/*
+ * `pointer: fine` as well as the size, or an iPad — which is wider than this
+ * threshold and has a real safe area of its own — would draw the whole app
+ * inside a little pretend phone in the middle of its screen. The frame is for
+ * previewing on a desktop browser; anything with a finger gets the app itself.
+ */
+@media (min-width: 620px) and (min-height: 560px) and (pointer: fine) {
   body {
     display: grid;
     place-items: center;
@@ -2952,7 +2973,7 @@ input {
  * off the inside of the bottom edge, and enough drop shadow to read as a solid
  * object floating over the page rather than a tint painted onto it.
  */
-@media (max-width: 619px), (max-height: 559px) {
+@media (max-width: 619px), (max-height: 559px), (pointer: coarse) {
   .chip,
   .search,
   .compose,
