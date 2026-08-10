@@ -152,12 +152,6 @@ export async function purgeExpired(): Promise<void> {
   await purgeExpiredMemos(cutoff);
 }
 
-export async function countSongs(): Promise<number> {
-  const db = await openDB();
-  const tx = db.transaction(SONGS, 'readonly');
-  return wrap(tx.objectStore(SONGS).count());
-}
-
 /** A fresh, empty song ready to drop into the store. */
 export function newSong(overrides: Partial<Song> = {}): Song {
   const now = Date.now();

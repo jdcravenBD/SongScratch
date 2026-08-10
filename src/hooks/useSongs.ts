@@ -2,115 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Song } from '../types';
 import { newId } from '../lib/id';
 import {
-  countSongs,
   deleteSongs as dbDelete,
   getAllSongs,
   newSong,
   putSong,
   putSongs,
 } from '../db/songs';
-
-const SEED_FLAG = 'ss-seeded';
-
-/**
- * A few example songs on first ever launch, so the list shows the design
- * populated rather than empty. Guarded by a localStorage flag so it never runs
- * again — the user is free to delete them.
- *
- * Memoised as one shared promise so React StrictMode's double-invoked effect
- * awaits the *same* seeding run rather than racing it: without this the second
- * pass can read the store before the first pass's writes commit and render an
- * empty list.
- */
-let seedPromise: Promise<void> | null = null;
-
-function seedIfFirstRun(): Promise<void> {
-  if (!seedPromise) seedPromise = doSeed();
-  return seedPromise;
-}
-
-async function doSeed(): Promise<void> {
-  if (localStorage.getItem(SEED_FLAG)) return;
-  localStorage.setItem(SEED_FLAG, '1');
-  if ((await countSongs()) > 0) return;
-
-  const now = Date.now();
-  const min = 60_000;
-  const day = 86_400_000;
-
-  const demos: Array<Partial<Song> & { title: string; updatedAt: number }> = [
-    {
-      title: 'Yellow Letter',
-      tuning: 'Open G',
-      description: 'unsealed, on a porch a letter sat',
-      pinned: true,
-      chordCount: 5,
-      sectionCount: 4,
-      voiceCount: 2,
-      updatedAt: now - 24 * min,
-    },
-    {
-      title: 'Back Porch',
-      tuning: 'Open G',
-      description: 'Slow, fingerpicked. Verse idea only.',
-      chordCount: 4,
-      sectionCount: 1,
-      voiceCount: 1,
-      updatedAt: now - 3 * 60 * min,
-    },
-    {
-      title: 'Raindrop',
-      tuning: 'Standard',
-      description: 'being able to mask your emotions',
-      chordCount: 6,
-      sectionCount: 3,
-      updatedAt: now - day - 2 * 60 * min,
-    },
-    {
-      title: 'Dropped',
-      tuning: 'Drop D',
-      description: 'Heavier chorus — needs a bridge.',
-      chordCount: 3,
-      sectionCount: 2,
-      voiceCount: 4,
-      updatedAt: now - 3 * day,
-    },
-    {
-      title: 'Spring',
-      tuning: 'DADGAD',
-      description: 'written in the style of eyes without a face',
-      sectionCount: 2,
-      updatedAt: now - 5 * day,
-    },
-    {
-      title: 'Bread',
-      tuning: 'Standard',
-      description: 'verse 1:',
-      chordCount: 4,
-      updatedAt: now - 12 * day,
-    },
-    {
-      title: 'Underneath the Sun',
-      tuning: 'Half step down',
-      description: "broken tree's the autumn's turned",
-      chordCount: 7,
-      sectionCount: 5,
-      voiceCount: 1,
-      updatedAt: now - 46 * day,
-    },
-    {
-      title: '',
-      tuning: 'Standard',
-      updatedAt: now - 74 * day,
-    },
-  ];
-
-  await putSongs(
-    demos.map((d) =>
-      newSong({ ...d, createdAt: d.updatedAt - day, updatedAt: d.updatedAt }),
-    ),
-  );
-}
 
 /**
  * "New Song", then "New Song 2"… counted from the highest already in use, so
@@ -151,17 +48,14 @@ export function useSongs(refreshKey = 0): SongsApi {
     if (refreshKey) void refresh();
   }, [refreshKey, refresh]);
 
+  /**
+   * A new install opens on an empty list — no sample songs. What is in here is
+   * the user's, all of it. If the store can't be read at all, show the empty
+   * list rather than nothing: a screen stuck on "loading" has no way out.
+   */
   useEffect(() => {
     let alive = true;
     (async () => {
-      // Seeding is a nicety. If it fails, still show whatever is in the store —
-      // letting it take the load down with it leaves a permanently blank list
-      // with no way back.
-      try {
-        await seedIfFirstRun();
-      } catch {
-        /* fall through to the read */
-      }
       try {
         const all = await getAllSongs();
         if (alive) setSongs(all);

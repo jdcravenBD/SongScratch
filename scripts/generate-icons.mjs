@@ -1,9 +1,13 @@
 /**
- * Generates the PWA icon set — a plain placeholder mark to be replaced later.
+ * Generates the app's icon set: two white S's on a black tile, in keeping with
+ * the black/white theme.
  *
- * A white musical note on a black tile, in keeping with the app's black/white
- * theme. Rasterised by hand and encoded with nothing but Node's built-in zlib
- * (no native canvas, no image dependency), so `npm run icons` works on a clean
+ * The mark is described once, as a centreline sampled into a polyline, and both
+ * outputs are built from it — the PNGs by measuring distance to that line, the
+ * SVG by writing the same points out as a path. They cannot drift apart.
+ *
+ * Rasterised by hand and encoded with nothing but Node's built-in zlib (no
+ * native canvas, no image dependency), so `npm run icons` works on a clean
  * checkout on any platform.
  *
  *   node scripts/generate-icons.mjs
@@ -42,17 +46,57 @@ function insideRoundedRect(x, y, r) {
   return Math.hypot(x - cx, y - cy) <= r;
 }
 
-/**
- * A single quarter note in a normalised 0..1 content box: filled head, straight
- * stem, one flag. Placeholder art — swap for a real mark later.
+/* -------------------------------------------------------------- the mark --
+ * Song Scratch, so: two S's. Each is one continuous stroke — the top bowl
+ * swept round from its upper right, and the bottom bowl carrying on from the
+ * waist and away to the lower left, which is what makes an S rather than a
+ * figure eight. The two arcs meet exactly at the waist by construction.
  */
+
+/** Bowl radius. An S is 2r wide and 4r tall, before the stroke is added. */
+const R = 0.2;
+/** How thick the stroke is drawn, in the same 0..1 content box. */
+const WEIGHT = 0.1;
+/** Space between the pair. */
+const GAP = 0.06;
+/**
+ * How far round each bowl goes. Short of a full turn on purpose: carry it much
+ * past this and the terminals close on the waist, and the letter reads as a
+ * spiral rather than an S.
+ */
+const SWEEP = 182;
+
+/** One S's centreline, sampled fine enough that the joins read as smooth. */
+function sPoints(cx, cy) {
+  const points = [];
+  const arc = (ax, ay, from, to) => {
+    const steps = 28;
+    for (let i = 0; i <= steps; i++) {
+      const t = ((from + ((to - from) * i) / steps) * Math.PI) / 180;
+      points.push([ax + R * Math.cos(t), ay + R * Math.sin(t)]);
+    }
+  };
+  // Both bowls finish at the waist (cx, cy), which is -270° on the top circle
+  // and -90° on the bottom one, so the halves meet without a seam.
+  arc(cx, cy - R, -270 + SWEEP, -270); // top bowl, in from the upper right
+  arc(cx, cy + R, -90, -90 + SWEEP); // bottom bowl, out to the lower left
+  return points;
+}
+
+/** Both of them, centred as a pair in the content box. */
+const MARK = [
+  sPoints(0.5 - (2 * R + GAP) / 2, 0.5),
+  sPoints(0.5 + (2 * R + GAP) / 2, 0.5),
+];
+
 function markAlpha(x, y) {
-  // note head (slightly widened ellipse)
-  if (Math.hypot((x - 0.4) / 1.18, y - 0.68) <= 0.155) return 1;
-  // stem, up the right edge of the head
-  if (distToSegment(x, y, 0.55, 0.66, 0.55, 0.2) <= 0.03) return 1;
-  // flag
-  if (distToSegment(x, y, 0.55, 0.2, 0.73, 0.37) <= 0.032) return 1;
+  for (const points of MARK) {
+    for (let i = 1; i < points.length; i++) {
+      const [ax, ay] = points[i - 1];
+      const [bx, by] = points[i];
+      if (distToSegment(x, y, ax, ay, bx, by) <= WEIGHT / 2) return 1;
+    }
+  }
   return 0;
 }
 
@@ -172,15 +216,23 @@ function encodePng(rgba, size) {
 
 /* ------------------------------------------------------------------ build -- */
 
-const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
-  <rect width="96" height="96" rx="21" fill="#000000"/>
-  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M53 19v44" stroke-width="6"/>
-    <path d="M53 19c6 6 15 7 17 17" stroke-width="6"/>
-    <ellipse cx="41" cy="65" rx="14" ry="11" fill="#ffffff" stroke="none"/>
+/** The same mark as a 96-unit SVG, at the same content scale as icon-192. */
+const SVG = (() => {
+  const box = 96;
+  const scale = 0.72;
+  const at = (v) => (box / 2 + (v - 0.5) * box * scale).toFixed(2);
+  const path = (points) =>
+    points
+      .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${at(x)} ${at(y)}`)
+      .join(' ');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}" width="${box}" height="${box}">
+  <rect width="${box}" height="${box}" rx="21" fill="#000000"/>
+  <g fill="none" stroke="#ffffff" stroke-width="${(WEIGHT * box * scale).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">
+${MARK.map((points) => `    <path d="${path(points)}"/>`).join('\n')}
   </g>
 </svg>
 `;
+})();
 
 const TARGETS = [
   { file: 'icon-16.png', size: 16, corner: 0.16, scale: 0.86 },
