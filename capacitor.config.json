@@ -1,6 +1,6 @@
 {
   "appId": "com.songscratch.app",
-  "appName": "Song Scratch",
+  "appName": "Song Scratcher",
   "webDir": "dist",
   "backgroundColor": "#000000",
   "android": {

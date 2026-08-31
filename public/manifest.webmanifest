@@ -1,6 +1,6 @@
 {
-  "name": "Song Scratch",
-  "short_name": "Song Scratch",
+  "name": "Song Scratcher",
+  "short_name": "Song Scratcher",
   "description": "A lightweight place to scratch down chord progressions, lyrics and voice notes.",
   "id": "./",
   "start_url": "./index.html",

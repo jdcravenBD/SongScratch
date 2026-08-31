@@ -1,4 +1,4 @@
-# Song Scratch → TestFlight, built on Codemagic's hosted Mac.
+# Song Scratcher → TestFlight, built on Codemagic's hosted Mac.
 #
 # The web app is built here rather than committed: ios/App/App/public is in
 # Capacitor's own ios/.gitignore, so `npm run build && npx cap sync ios` below
