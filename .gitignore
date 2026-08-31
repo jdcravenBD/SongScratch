@@ -10,6 +10,7 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 
-# capacitor native projects (regenerate with `npx cap add android|ios`)
+# Android has no native project yet; iOS is committed on purpose. A build
+# machine that regenerated ios/ would lose every Info.plist edit with it and
+# ship an app that dies on its first permission request.
 /android
-/ios

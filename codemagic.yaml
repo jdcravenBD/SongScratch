@@ -1,0 +1,89 @@
+# Song Scratch → TestFlight, built on Codemagic's hosted Mac.
+#
+# The web app is built here rather than committed: ios/App/App/public is in
+# Capacitor's own ios/.gitignore, so `npm run build && npx cap sync ios` below
+# is what actually puts the app inside the shell. Everything else under ios/ IS
+# committed — regenerating it on the build machine would throw away the
+# Info.plist edits (the microphone string above all) and produce an app that
+# dies the first time it asks for the mic.
+
+workflows:
+  ios-testflight:
+    name: iOS · TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      # The App Store Connect API key already stored in Codemagic. It signs the
+      # fetch below and authenticates the upload — but it does NOT carry the
+      # certificate private key; see the group below.
+      app_store_connect: Easy as Tuning
+
+    environment:
+      groups:
+        # Must contain CERTIFICATE_PRIVATE_KEY: the contents of
+        # ios_distribution_key.pem, pasted whole, BEGIN/END lines included.
+        # The App Store Connect integration cannot supply this — without it,
+        # `keychain add-certificates` has a certificate and no key to match it.
+        - ios_signing
+      vars:
+        BUNDLE_ID: 'com.songscratch.app'
+        XCODE_PROJECT: 'ios/App/App.xcodeproj'
+        XCODE_SCHEME: 'App'
+      node: 22
+      xcode: latest
+
+    scripts:
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Build the web app and sync it into the shell
+        script: |
+          npm run build
+          npx cap sync ios
+
+      - name: Set up code signing
+        # Done with the CLI, not environment.ios_signing. That block only
+        # FETCHES files that already exist; on a bundle id that has never been
+        # built it finds nothing and fails. --create is what registers the App
+        # ID and issues the provisioning profile the first time.
+        #
+        # The distribution certificate is per-team and already exists: this
+        # fetches it rather than issuing a second one.
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: Stamp the build number
+        # TestFlight rejects a build number it has already seen. agvtool is the
+        # usual tool but needs VERSIONING_SYSTEM = apple-generic, which the
+        # Capacitor template does not set — so write it straight into the
+        # project instead. (BSD sed: -i takes an argument.)
+        script: |
+          sed -i '' "s/CURRENT_PROJECT_VERSION = .*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" \
+            "$XCODE_PROJECT/project.pbxproj"
+
+      - name: Build the ipa
+        script: |
+          xcode-project build-ipa \
+            --project "$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+      email:
+        recipients:
+          - jdcraven87@gmail.com
+        notify:
+          success: true
+          failure: true

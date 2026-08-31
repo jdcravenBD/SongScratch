@@ -18,84 +18,84 @@ App Store without it.
 
 ---
 
-## 1. Enrol in the Apple Developer Program
+## 1. Apple Developer Program — already active
 
-<https://developer.apple.com/programs/enroll/>
+Membership is live and the Paid Applications agreement is signed, so nothing to
+do here. The distribution certificate is **per team**: it already exists from
+Easy as Tuning and must be reused, never reissued. Issuing a second one does not
+break the first, but it burns one of the two slots a team gets.
 
-- Enrol as an **individual**, not an organization, unless you need the company
-  name on the listing. An organization needs a D-U-N-S number and takes days to
-  weeks; an individual is usually approved within 48 hours.
-- Your Apple ID needs two-factor authentication on already.
-- Your listing will show your legal name as the seller. If that matters, that's
-  the reason to go the organization route instead.
+## 2. The native shell — done, in the repo
 
-While you wait, do steps 2 and 3.
+Capacitor 8.5 wraps the app. `ios/` is **committed**, not generated on the build
+machine, so the Info.plist edits below survive.
 
-## 2. Wrap the web app with Capacitor
+- **Bundle ID `com.songscratch.app`** — permanent, set in
+  `capacitor.config.json` and `project.pbxproj`.
+- **Deployment target iOS 15.0**, iPhone only (`TARGETED_DEVICE_FAMILY = 1`),
+  portrait only.
+- **Plugins:** `@capacitor/keyboard` and `@capacitor/status-bar`, both npm
+  packages, so `cap sync` writes them into `packageClassList` itself. If a
+  hand-written Swift plugin is ever added to the app target, its class name has
+  to be put back into `ios/App/App/capacitor.config.json` after every sync —
+  that file is regenerated, and a plugin missing from the list compiles, signs,
+  ships, and can never be called.
+- **`Info.plist`:** `NSMicrophoneUsageDescription` (the voice tab crashes
+  without it), `ITSAppUsesNonExemptEncryption = false` so TestFlight stops
+  asking on every upload, portrait-only orientations, `arm64` rather than the
+  template's legacy `armv7`.
+- **A shared scheme** at `ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme`,
+  written by hand — Xcode puts schemes in gitignored `xcuserdata`, so CI would
+  otherwise have nothing to build.
+- **The launch screen is black.** The template's was `systemBackgroundColor`,
+  which is white, over a stock splash image — a white flash on every cold launch
+  of an app that is black edge to edge.
+- **The app icon** is generated straight into the asset catalog by
+  `npm run icons`, as opaque RGB. An icon carrying an alpha channel is rejected
+  at upload (ITMS-90717), after the build has already run.
+- **The service worker does not register in the native shell.** The assets are
+  already on the device; a worker holding the old bundle inside the WebView
+  would keep serving it after an App Store update.
 
-This part runs on Windows. It creates the native project that CI will build.
-
-```bash
-npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/keyboard @capacitor/status-bar
-```
-
-```bash
-npx cap init "Song Scratch" com.yourname.songscratch --web-dir=dist
-```
-
-Pick the bundle id carefully — `com.yourname.songscratch` is permanent once the
-app exists in App Store Connect, and it can never be reused for anything else.
-
-```bash
-npm run build && npx cap add ios
-```
-
-`cap add ios` works on Windows; it only copies the project template. Commit the
-generated `ios/` folder — CI builds from it.
-
-### Things this app specifically needs in the native project
-
-| What | Where | Why |
-| --- | --- | --- |
-| `NSMicrophoneUsageDescription` | `ios/App/App/Info.plist` | The voice tab **will crash without it**, and review rejects apps that ask for a permission with no reason string. Something like "Song Scratch records voice memos so you can keep an idea before you lose it." |
-| `Keyboard.setAccessoryBarVisible({ isVisible: false })` | called once at startup | Removes Safari's own toolbar above the keyboard — the double bar you see when testing in Safari. This is the only way to get rid of it. |
-| Status bar style | `@capacitor/status-bar` | Keep it light-on-black to match the app. |
-| Service worker | `src/main.tsx` | Skip registering it when running under Capacitor. The assets are already local, and a service worker inside the app's WebView can serve stale files across app updates. |
-
-A bonus you get for free: IndexedDB inside a native WebView is **not** subject to
-Safari's seven-day eviction. Recordings become genuinely durable.
+Capacitor 8 uses Swift Package Manager, not CocoaPods, so there is no `Podfile`
+and nothing needs `pod install`.
 
 ## 3. Create the app record
 
-In [App Store Connect](https://appstoreconnect.apple.com) → **My Apps → +**.
+In [App Store Connect](https://appstoreconnect.apple.com) - **My Apps -> +**.
 
-- Platform iOS, the bundle id from step 2, an SKU (any private string).
+- Platform iOS, bundle ID `com.songscratch.app`, an SKU (any private string).
 - **The app name must be unique across the whole store.** Check "Song Scratch"
-  is free early; if it isn't, you need a different name before anything else.
+  is free before anything else.
 
-Then, still in a browser:
+You do **not** need to create a certificate or a provisioning profile by hand.
+The build does that on its first run - see below.
 
-- **Users and Access → Integrations → App Store Connect API** → create a key with
-  **App Manager** access. Download the `.p8` **once** — it is never shown again.
-  This key is what lets CI sign and upload without a Mac.
+## 4. Codemagic
 
-## 4. Set up the cloud build
+`codemagic.yaml` is in the repo, workflow **`ios-testflight`**. Two things must
+exist in the Codemagic UI before the first build:
 
-Two reasonable options.
+1. **The App Store Connect integration**, already there under the name
+   **"Easy as Tuning"** - referenced by `integrations.app_store_connect`.
+2. **An environment group named `ios_signing`**, containing one variable:
 
-**Codemagic** (easiest for Capacitor). Free tier covers 500 build minutes a month,
-which is plenty for a personal app. Connect the repo, choose the Capacitor/iOS
-workflow, paste in the App Store Connect API key, and turn on automatic code
-signing — it creates and manages the certificates for you. Its output can go
-straight to TestFlight.
+   | Variable | Value |
+   | --- | --- |
+   | `CERTIFICATE_PRIVATE_KEY` | The whole contents of `C:\Users\Joe\Documents\easyastuning-signing\ios_distribution_key.pem`, `BEGIN`/`END` lines included. Mark it secure. |
 
-**GitHub Actions** (free, more fiddly). `runs-on: macos-14`, then
-`npm ci && npm run build && npx cap sync ios`, then `xcodebuild -archive` and
-`xcrun altool --upload-app`. macOS minutes bill at 10× on private repos, so the
-free allowance is roughly 200 macOS minutes a month — enough, but not generous.
+   The App Store Connect API key does **not** carry this. Without it
+   `keychain add-certificates` has a certificate and no private key to pair it
+   with, and the build fails at signing.
 
-Either way the certificate work happens in the cloud. You never generate a CSR
-on a Mac.
+   If your existing group is called something else, change the one line under
+   `environment.groups`.
+
+Signing is done by the CLI, not by `environment.ios_signing`: that block only
+*fetches* files that already exist, and nothing exists for a bundle ID that has
+never been built. `fetch-signing-files --create` registers the App ID and issues
+the profile on the first run. The distribution certificate is per-team and
+already exists - it is fetched, not reissued.
 
 ## 5. TestFlight
 

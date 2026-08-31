@@ -189,21 +189,40 @@ function chunk(type, body) {
   return Buffer.concat([length, typeBuf, body, crc]);
 }
 
-function encodePng(rgba, size) {
+/**
+ * @param {Buffer} rgba
+ * @param {number} size
+ * @param {boolean} opaque Drop the alpha channel entirely and write RGB.
+ *   App Store Connect rejects an app icon that merely *has* an alpha channel,
+ *   even one that is opaque everywhere — ITMS-90717, raised at upload, after a
+ *   full build has already been paid for.
+ */
+function encodePng(rgba, size, opaque = false) {
+  const channels = opaque ? 3 : 4;
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
   ihdr.writeUInt32BE(size, 4);
   ihdr[8] = 8; // bit depth
-  ihdr[9] = 6; // colour type: RGBA
+  ihdr[9] = opaque ? 2 : 6; // colour type: RGB or RGBA
   ihdr[10] = 0; // deflate
   ihdr[11] = 0; // adaptive filtering
   ihdr[12] = 0; // no interlace
 
-  const stride = size * 4;
+  const stride = size * channels;
   const raw = Buffer.alloc((stride + 1) * size);
   for (let y = 0; y < size; y++) {
     raw[y * (stride + 1)] = 0; // filter byte (0 = None)
-    rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
+    if (opaque) {
+      for (let x = 0; x < size; x++) {
+        const from = (y * size + x) * 4;
+        const to = y * (stride + 1) + 1 + x * 3;
+        raw[to] = rgba[from];
+        raw[to + 1] = rgba[from + 1];
+        raw[to + 2] = rgba[from + 2];
+      }
+    } else {
+      rgba.copy(raw, y * (stride + 1) + 1, y * stride, (y + 1) * stride);
+    }
   }
 
   return Buffer.concat([
@@ -245,6 +264,22 @@ const TARGETS = [
   { file: 'apple-touch-icon.png', size: 180, corner: 0, scale: 0.68 },
 ];
 
+/**
+ * The native app icon, written straight into the Xcode asset catalog so the
+ * home screen and the web app can never show different marks. Square, opaque,
+ * and 1024 — the three things App Store Connect checks.
+ */
+const IOS_APPICON = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'ios',
+  'App',
+  'App',
+  'Assets.xcassets',
+  'AppIcon.appiconset',
+  'AppIcon-512@2x.png',
+);
+
 mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(join(OUT_DIR, 'icon.svg'), SVG, 'utf8');
 console.log('icon.svg');
@@ -255,4 +290,8 @@ for (const { file, size, corner, scale } of TARGETS) {
   console.log(`${file}  ${size}x${size}  ${(png.length / 1024).toFixed(1)} KB`);
 }
 
-console.log(`\nWrote ${TARGETS.length + 1} files to public/icons/`);
+// The native icon, at the size and in the format App Store Connect insists on.
+writeFileSync(IOS_APPICON, encodePng(render(1024, 0, 0.68), 1024, true));
+console.log('ios AppIcon-512@2x.png  1024x1024  opaque');
+
+console.log(`\nWrote ${TARGETS.length + 2} files`);
