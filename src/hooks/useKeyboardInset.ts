@@ -87,21 +87,40 @@ export function useKeyboardInset(): number {
       if (e.pointerType !== 'touch') return;
       const el = e.target as HTMLElement | null;
       if (!el) return;
+      // Buttons inside the pill — the clear cross — are their own thing.
+      if (el.closest('button, a, [role="button"]')) return;
+
       /*
        * `closest` only walks upwards, and the search field is an <input> inside
        * a <label>. Land on the magnifier or on the pill's padding and the label
-       * still moves focus to the field — but the press itself was on neither
-       * the input nor an ancestor of it, so this bailed and the page flew.
-       * Which half of the pill your thumb hit decided whether it happened: the
-       * "only sometimes" of it.
+       * still moves focus to the field, so this has to find it downwards too.
        */
-      const takesText =
-        el.closest('input, textarea, [contenteditable="true"]') ??
-        el.closest('label')?.querySelector('input, textarea');
-      if (!takesText) return;
+      const field = (el.closest('input, textarea') ??
+        el.closest('label')?.querySelector('input, textarea')) as HTMLElement | null;
+      const editable = el.closest('[contenteditable="true"]');
+      if (!field && !editable) return;
+
       guessUntil = performance.now() + PRIME_MS;
       setInset(guess);
       settle();
+
+      /*
+       * And now take the focus by hand, because the layout is about to move out
+       * from under this finger: the screen shortens by the keyboard's height in
+       * the same breath, which carries the dock — and the field in it — a long
+       * way up. The click that follows lands on whatever has slid into that
+       * place instead, so the field was never focused and the keyboard never
+       * appeared at all.
+       *
+       * Suppressing the default takes the browser's own focus and blur handling
+       * out of it, or that stray click would take the focus straight back off
+       * again. Only for a plain field: a contenteditable's tap is what places
+       * the caret in it, and that must go through untouched.
+       */
+      if (field && document.activeElement !== field) {
+        e.preventDefault();
+        field.focus({ preventScroll: true });
+      }
     };
 
     vv.addEventListener('resize', settle);

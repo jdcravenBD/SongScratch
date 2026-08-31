@@ -82,7 +82,7 @@
    * floating search sits well inside the inset — matching it means giving up
    * most of the 34pt and keeping only enough to clear the indicator itself.
    */
-  --dock-floor: max(6px, calc(var(--safe-b) - 18px));
+  --dock-floor: max(6px, calc(var(--safe-b) - 10px));
   /* One height for every glass control — chips, icon buttons, the search
      field, the tabs and the format bar all sit on this, so nothing reads as
      slightly the wrong size beside its neighbour. */
@@ -92,7 +92,7 @@
    * happens and are sized for a thumb; the top bar is back, undo and a menu —
    * reached deliberately, and better for being lighter.
    */
-  --control-h-top: 40px;
+  --control-h-top: 44px;
 
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
   /* How long a whole screen takes to arrive or leave. App.tsx holds the same
@@ -202,40 +202,28 @@ input {
 }
 
 /*
- * The list stands aside as a song comes in over it and follows it back out —
- * the two screens move together, so the song looks like it came from the list
- * rather than landing on top of a page that never noticed.
+ * The list stands aside as a song comes in over it and comes back as one
+ * leaves, so the two screens move together and the song reads as having come
+ * *from* the list rather than landing on a page that never noticed.
+ *
+ * A transition rather than keyframes, deliberately. An animation only restarts
+ * when its name changes, which once left the list arriving home before it had
+ * moved; and an animation outranks the inline transform the back-swipe writes,
+ * so a cancelled swipe would replay the slide from wherever the keyframes
+ * thought it should be. A transition has neither problem: it interpolates from
+ * whatever is actually there.
  */
+.songs {
+  transition: transform var(--screen-ms) var(--ease);
+}
+
 .songs.is-standing-aside {
-  animation: list-aside var(--screen-ms) var(--ease) forwards;
+  transform: translateX(-28%);
 }
 
-/*
- * Its own keyframes rather than the same ones reversed. Swapping the class
- * doesn't restart an animation that keeps its name — the browser sees the one
- * that has already finished, and simply reads its end state, so the list
- * arrived home before it had moved.
- */
-.songs.is-returning {
-  animation: list-return var(--screen-ms) var(--ease) backwards;
-}
-
-@keyframes list-aside {
-  from {
-    transform: none;
-  }
-  to {
-    transform: translateX(-28%);
-  }
-}
-
-@keyframes list-return {
-  from {
-    transform: translateX(-28%);
-  }
-  to {
-    transform: none;
-  }
+/* While a finger is dragging it home, it goes exactly where the finger is. */
+.songs.is-tracking {
+  transition: none;
 }
 
 /* ------------------------------------------------------------------ nav bar --

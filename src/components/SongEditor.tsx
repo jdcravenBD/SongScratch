@@ -100,8 +100,9 @@ export default function SongEditor({
   const chords = useChordSections(id, tab === 'chords', refreshKey);
 
   // Swipe in from the left edge to leave, as the system apps do. Not while the
-  // page is being written on, where a drag has to mean "select".
-  const screenRef = useEdgeBack(onDismiss ?? onBack, !editing);
+  // page is being written on, where a drag has to mean "select". The song list
+  // is behind this, and comes home with the finger rather than after it.
+  const screenRef = useEdgeBack(onDismiss ?? onBack, !editing, '.screen.songs');
 
   useEffect(() => () => window.clearTimeout(pickerTimer.current), []);
 

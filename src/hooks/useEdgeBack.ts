@@ -8,6 +8,8 @@ const SLOP = 10;
 const COMMIT = 0.32;
 /** …or a flick faster than this, however short. */
 const FLICK = 0.45; // px per ms
+/** How far the screen behind sits back. Matches the list-aside keyframes. */
+const UNDER = 28; // %
 
 /**
  * iOS's swipe-from-the-left-edge to go back, done by hand.
@@ -35,7 +37,16 @@ const FLICK = 0.45; // px per ms
  * fills a `useRef` after the effect that wanted it has already run, and the
  * gesture would then be attached to nothing for the life of the screen.
  */
-export function useEdgeBack(onBack: () => void, enabled = true) {
+export function useEdgeBack(
+  onBack: () => void,
+  enabled = true,
+  /**
+   * A selector for the screen sitting behind this one, if it has somewhere to
+   * be. It is drawn home in step with the finger rather than waiting for the
+   * release — half-covered and stationary, it reads as lagging behind.
+   */
+  under?: string,
+) {
   const [el, setEl] = useState<HTMLElement | null>(null);
 
   /*
@@ -63,9 +74,29 @@ export function useEdgeBack(onBack: () => void, enabled = true) {
     let lastT = 0;
     let speed = 0;
 
+    /** The screen behind, moved with this one. Found when the drag commits to
+        being one, since it may not have existed when the effect ran. */
+    let companion: HTMLElement | null = null;
+
     const move = (x: number, animate: boolean) => {
-      el.style.transition = animate ? 'transform 0.26s cubic-bezier(0.2,0.9,0.3,1)' : 'none';
+      const ease = 'transform 0.26s cubic-bezier(0.2,0.9,0.3,1)';
+      el.style.transition = animate ? ease : 'none';
       el.style.transform = x === 0 ? '' : `translate3d(${x}px,0,0)`;
+
+      if (!companion) return;
+      // Fully back by the time this screen is fully gone.
+      const progress = Math.min(1, Math.max(0, x / (el.offsetWidth || 390)));
+      companion.style.transition = animate ? ease : 'none';
+      companion.style.transform = `translateX(${(-UNDER * (1 - progress)).toFixed(2)}%)`;
+    };
+
+    /** Hands the screen behind back to whatever CSS was holding it. */
+    const releaseCompanion = () => {
+      if (!companion) return;
+      companion.style.transition = '';
+      companion.style.transform = '';
+      companion.classList.remove('is-tracking');
+      companion = null;
     };
 
     const release = () => {
@@ -102,12 +133,25 @@ export function useEdgeBack(onBack: () => void, enabled = true) {
         if (dx < SLOP) return;
         owns = true;
         el.style.willChange = 'transform';
+        companion = under ? document.querySelector<HTMLElement>(under) : null;
+        // Its own animation would otherwise sit on top of what we set here.
+        companion?.classList.add('is-tracking');
       }
 
+      /*
+       * Speed over a real interval, not between whichever two moves happened to
+       * arrive together. A pair a fraction of a millisecond apart — two samples
+       * in one frame on a fast panel, or coalesced events — divides a few
+       * pixels by almost nothing and reports a flick that never happened, which
+       * sends the screen away under a finger that was barely moving. The mark
+       * only advances when it is old enough to divide by.
+       */
       const dt = e.timeStamp - lastT;
-      if (dt > 0) speed = (e.clientX - lastX) / dt;
-      lastX = e.clientX;
-      lastT = e.timeStamp;
+      if (dt >= 8) {
+        speed = (e.clientX - lastX) / dt;
+        lastX = e.clientX;
+        lastT = e.timeStamp;
+      }
 
       // Rightward only, and stiffening as it goes so the screen never detaches
       // from the finger entirely.
@@ -131,6 +175,9 @@ export function useEdgeBack(onBack: () => void, enabled = true) {
       } else {
         move(0, true);
       }
+      // Long enough for the settle above to finish; the screen behind is at
+      // one end or the other by then, and CSS can have it back.
+      window.setTimeout(releaseCompanion, 300);
     };
 
     const onClick = (e: MouseEvent) => {
@@ -162,6 +209,7 @@ export function useEdgeBack(onBack: () => void, enabled = true) {
       window.removeEventListener('pointercancel', onUp);
       el.removeEventListener('touchmove', block);
       el.removeEventListener('click', onClick, true);
+      releaseCompanion();
       el.style.transition = '';
       el.style.transform = '';
       el.style.willChange = '';

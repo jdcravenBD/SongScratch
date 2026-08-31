@@ -28,14 +28,11 @@ interface Props {
   onTrash: () => void;
   /** Changes when something outside the list has changed its songs. */
   refreshKey?: number;
-  /**
-   * Which way this screen is travelling while a song is opened over it: out to
-   * the left as one arrives, or back from the left as one leaves.
-   */
-  shift?: 'out' | 'back' | null;
+  /** True while a song is open over this screen, which stands aside for it. */
+  aside?: boolean;
 }
 
-export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) {
+export default function SongList({ onOpen, onTrash, refreshKey, aside }: Props) {
   const { songs, createSong, deleteSongs, duplicateSongs, setPinned } = useSongs(refreshKey);
 
   const [query, setQuery] = useState('');
@@ -49,8 +46,6 @@ export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) 
 
   const navRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLHeadingElement>(null);
-  /** Scroll offset at which the hand-off begins; -1 until measured. */
-  const handOver = useRef(-1);
   const searchInput = useRef<HTMLInputElement>(null);
 
   /**
@@ -64,22 +59,25 @@ export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) 
     if (!nav) return;
 
     /*
-     * Where the hand-off starts, measured rather than guessed: the point at
-     * which the bottom of the big title has gone under the bottom of the bar,
-     * so the compact one only appears once the real one has actually left.
-     * Fixed offsets had it fading in while the title it duplicates was still
-     * on screen. Worked out once, from the first scroll report — the numbers
-     * are the same at any scroll position because `top` is added back in.
+     * Where the hand-off starts: the point at which the bottom of the big title
+     * has gone under the bottom of the bar, so the compact one only appears
+     * once the real one has actually left.
+     *
+     * Worked out every time rather than measured once and kept. The figure is
+     * the same at any scroll position — `top` is added back in — so this costs
+     * nothing, and it cannot be poisoned by one bad reading taken before the
+     * page had settled. Cached, a first measurement of 0 left the heading
+     * fading in a few pixels from the top and never quite reaching nothing.
      */
-    if (hero && handOver.current < 0) {
-      handOver.current = Math.max(
-        0,
-        hero.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom + top,
-      );
-    }
-    const from = handOver.current < 0 ? 0 : handOver.current;
+    if (!hero) return;
+    const from = Math.max(
+      0,
+      hero.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom + top,
+    );
     const t = Math.min(1, Math.max(0, (top - from) / COLLAPSE_OVER));
-    nav.style.setProperty('--collapse', String(t));
+    // Snapped, so the ends are exact: a hair of opacity left behind reads as a
+    // heading that never goes away.
+    nav.style.setProperty('--collapse', String(t < 0.01 ? 0 : t > 0.99 ? 1 : t));
   }, []);
 
   const matches = useMemo(() => {
@@ -139,7 +137,7 @@ export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) 
        the field rather than shoving the whole list up past the top edge. */
     <div
       className={`screen songs${selectMode ? ' is-selecting' : ''}${
-        shift === 'out' ? ' is-standing-aside' : shift === 'back' ? ' is-returning' : ''
+        aside ? ' is-standing-aside' : ''
       }`}
       style={{ '--kb': `${keyboardInset}px` } as React.CSSProperties}
     >
