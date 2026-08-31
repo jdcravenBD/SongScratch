@@ -11,6 +11,7 @@ import {
   type BlockKind,
 } from '../lib/lyrics';
 import { newId } from '../lib/id';
+import { useEdgeBack } from '../hooks/useEdgeBack';
 import { useKeyboardInset } from '../hooks/useKeyboardInset';
 import { useVoiceMemos } from '../hooks/useVoiceMemos';
 import { useChordSections } from '../hooks/useChordSections';
@@ -53,6 +54,8 @@ interface Props {
   /** Changes when something outside the editor has changed this song. */
   refreshKey?: number;
   onBack: () => void;
+  /** Leave without the animation — for the edge swipe, which is its own. */
+  onDismiss?: () => void;
   /** Opens Recently Deleted for whichever tab asked for it. */
   onTrash: (kind: 'sections' | 'memos') => void;
 }
@@ -63,7 +66,14 @@ interface Props {
  * switcher) and whether the page is being edited, since that decides between
  * the Edit button and the format bar at the bottom.
  */
-export default function SongEditor({ id, leaving, refreshKey, onBack, onTrash }: Props) {
+export default function SongEditor({
+  id,
+  leaving,
+  refreshKey,
+  onBack,
+  onDismiss,
+  onTrash,
+}: Props) {
   const [song, setSong] = useState<Song | null>(null);
   // Lyrics is the tab a song opens on.
   const [tab, setTab] = useState<Tab>('lyrics');
@@ -88,6 +98,10 @@ export default function SongEditor({ id, leaving, refreshKey, onBack, onTrash }:
   const keyboardInset = useKeyboardInset();
   const voice = useVoiceMemos(id, tab === 'voice', refreshKey);
   const chords = useChordSections(id, tab === 'chords', refreshKey);
+
+  // Swipe in from the left edge to leave, as the system apps do. Not while the
+  // page is being written on, where a drag has to mean "select".
+  const screenRef = useEdgeBack(onDismiss ?? onBack, !editing);
 
   useEffect(() => () => window.clearTimeout(pickerTimer.current), []);
 
@@ -223,6 +237,7 @@ export default function SongEditor({ id, leaving, refreshKey, onBack, onTrash }:
   return (
     <>
     <div
+      ref={screenRef}
       className={`screen editor${leaving ? ' is-leaving' : ''}${
         editing ? ' is-editing' : ''
       }${tab === 'voice' ? ' is-voice' : ''}${tab === 'chords' ? ' is-chords' : ''}`}

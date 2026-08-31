@@ -82,11 +82,17 @@
    * floating search sits well inside the inset — matching it means giving up
    * most of the 34pt and keeping only enough to clear the indicator itself.
    */
-  --dock-floor: max(6px, calc(var(--safe-b) - 26px));
+  --dock-floor: max(6px, calc(var(--safe-b) - 18px));
   /* One height for every glass control — chips, icon buttons, the search
      field, the tabs and the format bar all sit on this, so nothing reads as
      slightly the wrong size beside its neighbour. */
   --control-h: 48px;
+  /*
+   * Except along the top, which is a size down. The docks are where the work
+   * happens and are sized for a thumb; the top bar is back, undo and a menu —
+   * reached deliberately, and better for being lighter.
+   */
+  --control-h-top: 40px;
 
   --ease: cubic-bezier(0.2, 0.8, 0.3, 1);
   /* How long a whole screen takes to arrive or leave. App.tsx holds the same
@@ -3107,4 +3113,30 @@ input {
 /* The one solid control is an object light falls on, not a pane to see through. */
 .chip--solid {
   background-image: none;
+}
+
+/* ------------------------------------------------------ top bar sizing --
+ * Everything that lives in a top bar takes the smaller height. Listed rather
+ * than themed by a shared class because these are three different bars — the
+ * list's, the editor's, the picker's — that happen to agree on this.
+ */
+
+.navbar .chip,
+.navbar .iconbtn,
+.ebar .iconbtn,
+.ebar .pillgroup,
+.picker__top .iconbtn {
+  height: var(--control-h-top);
+}
+
+.navbar .iconbtn,
+.ebar .iconbtn,
+.picker__top .iconbtn {
+  width: var(--control-h-top);
+  max-width: var(--control-h-top);
+}
+
+/* The pill's own buttons fill it rather than keeping the taller size. */
+.ebar .pillgroup .iconbtn {
+  height: 100%;
 }

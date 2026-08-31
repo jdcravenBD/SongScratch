@@ -15,9 +15,8 @@ import {
   TrashIcon,
 } from './icons';
 
-/** Scroll offsets over which the big title hands off to the compact one. */
-const COLLAPSE_FROM = 16;
-const COLLAPSE_TO = 52;
+/** How much scrolling the hand-off takes, once it starts. */
+const COLLAPSE_OVER = 26;
 
 /**
  * The home screen: every song the user has, grouped the way Notes groups notes,
@@ -49,6 +48,9 @@ export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) 
   const keyboardInset = useKeyboardInset();
 
   const navRef = useRef<HTMLElement>(null);
+  const heroRef = useRef<HTMLHeadingElement>(null);
+  /** Scroll offset at which the hand-off begins; -1 until measured. */
+  const handOver = useRef(-1);
   const searchInput = useRef<HTMLInputElement>(null);
 
   /**
@@ -58,8 +60,25 @@ export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) 
    */
   const handleScroll = useCallback((top: number) => {
     const nav = navRef.current;
+    const hero = heroRef.current;
     if (!nav) return;
-    const t = Math.min(1, Math.max(0, (top - COLLAPSE_FROM) / (COLLAPSE_TO - COLLAPSE_FROM)));
+
+    /*
+     * Where the hand-off starts, measured rather than guessed: the point at
+     * which the bottom of the big title has gone under the bottom of the bar,
+     * so the compact one only appears once the real one has actually left.
+     * Fixed offsets had it fading in while the title it duplicates was still
+     * on screen. Worked out once, from the first scroll report — the numbers
+     * are the same at any scroll position because `top` is added back in.
+     */
+    if (hero && handOver.current < 0) {
+      handOver.current = Math.max(
+        0,
+        hero.getBoundingClientRect().bottom - nav.getBoundingClientRect().bottom + top,
+      );
+    }
+    const from = handOver.current < 0 ? 0 : handOver.current;
+    const t = Math.min(1, Math.max(0, (top - from) / COLLAPSE_OVER));
     nav.style.setProperty('--collapse', String(t));
   }, []);
 
@@ -178,7 +197,7 @@ export default function SongList({ onOpen, onTrash, refreshKey, shift }: Props) 
 
       <ScrollArea onScroll={handleScroll}>
         <div className="hero">
-          <h1 className="hero__title">
+          <h1 className="hero__title" ref={heroRef}>
             {selectMode ? (count ? `${count} Selected` : 'Select Songs') : 'All Songs'}
           </h1>
           <p className="hero__count">{countLabel}</p>

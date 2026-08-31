@@ -9,6 +9,7 @@ import {
   TRASH_DAYS,
 } from '../db/songs';
 import { getDeletedMemos, purgeMemos, restoreMemos } from '../db/memos';
+import { useEdgeBack } from '../hooks/useEdgeBack';
 import ScrollArea from './ScrollArea';
 import { BackIcon, SelectDot, TrashIcon } from './icons';
 
@@ -28,6 +29,8 @@ interface Props {
   /** True while the screen is sliding back off to the right. */
   leaving?: boolean;
   onBack: () => void;
+  /** Leave without the animation — for the edge swipe, which is its own. */
+  onDismiss?: () => void;
   /** Something came back, so whatever is underneath should read the store again. */
   onRestored: () => void;
 }
@@ -56,10 +59,17 @@ interface Item {
  * picking screen — nothing happens to an item from a single tap, the way it
  * does in the lists it stands behind.
  */
-export default function TrashScreen({ target, leaving, onBack, onRestored }: Props) {
+export default function TrashScreen({
+  target,
+  leaving,
+  onBack,
+  onDismiss,
+  onRestored,
+}: Props) {
   const { kind, songId } = target;
   const [items, setItems] = useState<Item[] | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const screen = useEdgeBack(onDismiss ?? onBack);
 
   const refresh = useCallback(async () => {
     const found: Item[] =
@@ -114,7 +124,7 @@ export default function TrashScreen({ target, leaving, onBack, onRestored }: Pro
   const [one, many] = UNIT[kind];
 
   return (
-    <div className={`screen trash${leaving ? ' is-leaving' : ''}`}>
+    <div className={`screen trash${leaving ? ' is-leaving' : ''}`} ref={screen}>
       <header className="ebar">
         <button className="iconbtn" type="button" aria-label="Back" onClick={onBack}>
           <BackIcon />

@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 const REMEMBERED = 'ss-kb-height';
 /** How long a guessed height is allowed to stand before measurement wins. */
 const PRIME_MS = 700;
+/**
+ * What to assume before this device has ever shown its keyboard. Roughly an
+ * iPhone's with the accessory bar; being a little out costs a small settle when
+ * the real number lands, where having no guess at all costs the whole flight.
+ */
+const DEFAULT_GUESS = 336;
 
 /**
  * How much of the window the on-screen keyboard is covering, in px.
@@ -33,7 +39,7 @@ export function useKeyboardInset(): number {
     const vv = window.visualViewport;
     if (!vv) return;
 
-    let guess = Number(localStorage.getItem(REMEMBERED)) || 0;
+    let guess = Number(localStorage.getItem(REMEMBERED)) || DEFAULT_GUESS;
     let guessUntil = 0;
     let raf = 0;
     let until = 0;
@@ -78,9 +84,21 @@ export function useKeyboardInset(): number {
 
     /** A finger going down on something that takes text, before focus moves. */
     const prime = (e: PointerEvent) => {
-      if (e.pointerType !== 'touch' || !guess) return;
+      if (e.pointerType !== 'touch') return;
       const el = e.target as HTMLElement | null;
-      if (!el?.closest?.('input, textarea, [contenteditable="true"]')) return;
+      if (!el) return;
+      /*
+       * `closest` only walks upwards, and the search field is an <input> inside
+       * a <label>. Land on the magnifier or on the pill's padding and the label
+       * still moves focus to the field — but the press itself was on neither
+       * the input nor an ancestor of it, so this bailed and the page flew.
+       * Which half of the pill your thumb hit decided whether it happened: the
+       * "only sometimes" of it.
+       */
+      const takesText =
+        el.closest('input, textarea, [contenteditable="true"]') ??
+        el.closest('label')?.querySelector('input, textarea');
+      if (!takesText) return;
       guessUntil = performance.now() + PRIME_MS;
       setInset(guess);
       settle();
