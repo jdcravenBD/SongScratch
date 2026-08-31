@@ -172,8 +172,6 @@ input {
 .app {
   position: relative;
   height: 100%;
-  container-type: size;
-  container-name: app;
   background: var(--bg);
   overflow: hidden;
   /* Dragging the list with a mouse must not select text. */
@@ -2826,131 +2824,6 @@ input {
   color: var(--text-2);
 }
 
-/* ============================================================= device frame ==
- * Desktop only: an iPhone 12 chassis (390x844) so the browser shows the app at
- * the proportions it is actually held at. None of this fires on a phone.
- */
-
-.device-chrome {
-  display: none;
-  position: absolute;
-  inset: 0;
-  z-index: 70;
-  pointer-events: none;
-}
-
-.device-chrome__notch {
-  --notch-ink: #000;
-  --fillet: 1.9cqw;
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 41cqw;
-  height: 7.7cqw;
-  background: var(--notch-ink);
-  border-bottom-left-radius: 4.9cqw;
-  border-bottom-right-radius: 4.9cqw;
-}
-
-/* Concave fillets where the notch meets the top edge, so it reads as the bezel
-   dipping in rather than as a floating island. */
-.device-chrome__notch::before,
-.device-chrome__notch::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  width: var(--fillet);
-  height: var(--fillet);
-}
-
-.device-chrome__notch::before {
-  left: calc(-1 * var(--fillet));
-  background: radial-gradient(
-    circle at 0 100%,
-    transparent var(--fillet),
-    var(--notch-ink) calc(var(--fillet) + 0.5px)
-  );
-}
-
-.device-chrome__notch::after {
-  right: calc(-1 * var(--fillet));
-  background: radial-gradient(
-    circle at 100% 100%,
-    transparent var(--fillet),
-    var(--notch-ink) calc(var(--fillet) + 0.5px)
-  );
-}
-
-.device-chrome__speaker {
-  width: 10.8cqw;
-  height: 1.3cqw;
-  border-radius: var(--pill);
-  background: #14161a;
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.9),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.07);
-}
-
-.device-chrome__home {
-  position: absolute;
-  bottom: 2cqw;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 34.4cqw;
-  height: 1.3cqw;
-  border-radius: var(--pill);
-  background: var(--text);
-  opacity: 0.5;
-}
-
-/*
- * `pointer: fine` as well as the size, or an iPad — which is wider than this
- * threshold and has a real safe area of its own — would draw the whole app
- * inside a little pretend phone in the middle of its screen. The frame is for
- * previewing on a desktop browser; anything with a finger gets the app itself.
- */
-@media (min-width: 620px) and (min-height: 560px) and (pointer: fine) {
-  body {
-    display: grid;
-    place-items: center;
-    padding: 20px;
-    background: radial-gradient(70% 60% at 50% 30%, #141414 0%, #000 72%);
-  }
-
-  #root {
-    /* The iPhone 12's own safe-area insets (47pt top, 34pt bottom of a 390pt
-       frame), which a desktop browser reports as zero.
-       In `cqw` — a fraction of the app's width — rather than percentages, so
-       they scale with the frame *and* mean the same thing whatever property
-       consumes them. A percentage would silently resolve against height in
-       `top` and against width in `padding`, which put the nav bar 55px lower
-       than the padding that was supposed to clear it. */
-    --safe-t: 12.05cqw;
-    --safe-b: 8.72cqw;
-    --safe-l: 0px;
-    --safe-r: 0px;
-
-    height: min(844px, calc(100dvh - 40px));
-    aspect-ratio: 390 / 844;
-    max-width: calc(100vw - 40px);
-    border-radius: 11.3% / 5.21%;
-    overflow: hidden;
-    box-shadow:
-      0 0 0 8px #000,
-      0 0 0 10px #2a2a2c,
-      0 44px 90px -28px rgba(0, 0, 0, 0.8),
-      0 6px 20px rgba(0, 0, 0, 0.35);
-  }
-
-  .device-chrome {
-    display: block;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -2968,9 +2841,9 @@ input {
 
 /* ============================================================ liquid glass ==
  * On a real handset the controls are lit as glass rather than as flat frosted
- * panes. This is the complement of the desktop-frame query above, so it applies
- * only where the frame does not: previewing in a browser keeps the plainer
- * material, which is what was asked for there.
+ * panes — asked for on the phone only, so a desktop browser keeps the plainer
+ * material. `pointer: coarse` is what carries that now: it means a finger,
+ * whatever the window happens to measure.
  *
  * Apple's is a native material that genuinely refracts what is behind it. CSS
  * cannot bend a backdrop, so what is reproduced here is everything else that

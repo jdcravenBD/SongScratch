@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { purgeExpired } from './db/songs';
-import DeviceChrome from './components/DeviceChrome';
 import SongList from './components/SongList';
 import SongEditor from './components/SongEditor';
 import TrashScreen, { type TrashTarget } from './components/TrashScreen';
@@ -9,9 +8,8 @@ import TrashScreen, { type TrashTarget } from './components/TrashScreen';
 const SCREEN_MS = 280;
 
 /**
- * On desktop the whole app is drawn inside an iPhone 12-shaped frame (see the
- * frame rules in app.css), so it previews at phone proportions in a browser. On
- * a real phone the frame melts away and it fills the screen.
+ * The app fills whatever it is given — a phone, or a browser window while it is
+ * being worked on.
  *
  * Navigation is one level deep — the list, or a song open on its tabs — with
  * Recently Deleted laid over whichever of those is showing. A song pushes in
@@ -134,7 +132,6 @@ export default function App() {
           onRestored={() => setListEpoch((n) => n + 1)}
         />
       )}
-      <DeviceChrome />
     </div>
   );
 }
