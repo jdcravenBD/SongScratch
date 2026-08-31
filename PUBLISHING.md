@@ -50,9 +50,12 @@ machine, so the Info.plist edits below survive.
 - **The launch screen is black.** The template's was `systemBackgroundColor`,
   which is white, over a stock splash image — a white flash on every cold launch
   of an app that is black edge to edge.
-- **The app icon** is generated straight into the asset catalog by
-  `npm run icons`, as opaque RGB. An icon carrying an alpha channel is rejected
-  at upload (ITMS-90717), after the build has already run.
+- **The app icon** comes from `assets/icon-master.png` — a square 1024 PNG,
+  the one thing drawn by hand. `npm run icons` resizes it into every web size
+  and writes the native one straight into the asset catalog as opaque RGB. An
+  icon carrying an alpha channel is rejected at upload (ITMS-90717), after the
+  build has already run. To change the icon: replace the master, run
+  `npm run icons`, commit both.
 - **The service worker does not register in the native shell.** The assets are
   already on the device; a worker holding the old bundle inside the WebView
   would keep serving it after an App Store update.

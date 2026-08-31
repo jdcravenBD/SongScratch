@@ -1,165 +1,144 @@
 /**
- * Generates the app's icon set: two white S's on a black tile, in keeping with
- * the black/white theme.
+ * Builds every icon the app ships, from one master image.
  *
- * The mark is described once, as a centreline sampled into a polyline, and both
- * outputs are built from it — the PNGs by measuring distance to that line, the
- * SVG by writing the same points out as a path. They cannot drift apart.
+ *   assets/icon-master.png  ->  public/icons/*  +  the iOS asset catalog
  *
- * Rasterised by hand and encoded with nothing but Node's built-in zlib (no
- * native canvas, no image dependency), so `npm run icons` works on a clean
- * checkout on any platform.
+ * The master is the only thing drawn by hand; everything else is a resize of
+ * it, so the home screen, the browser tab and the App Store can never show
+ * different marks. Re-export the master, run this, commit both.
+ *
+ * PNG is decoded and encoded here rather than by a library: no native canvas,
+ * no image dependency, so `npm run icons` works on a clean checkout on any
+ * platform. Only what this needs is supported - 8-bit, non-interlaced, RGB or
+ * RGBA, which is what every export tool produces.
  *
  *   node scripts/generate-icons.mjs
  */
 
-import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { deflateSync, inflateSync } from 'node:zlib';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'public', 'icons');
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const SOURCE = join(ROOT, 'assets', 'icon-master.png');
+const OUT_DIR = join(ROOT, 'public', 'icons');
 
-/* ------------------------------------------------------------------ paint -- */
+/* ---------------------------------------------------------------- decode -- */
 
-const WHITE = [0xff, 0xff, 0xff];
-const BLACK = [0x00, 0x00, 0x00];
+/** Returns { width, height, pixels }, the pixels as RGBA, four bytes each. */
+function decodePng(file) {
+  const d = readFileSync(file);
+  if (d.readUInt32BE(0) !== 0x89504e47) throw new Error(file + ' is not a PNG');
 
-/** Squared distance from (px,py) to the segment (ax,ay)-(bx,by). */
-function distToSegment(px, py, ax, ay, bx, by) {
-  const vx = bx - ax;
-  const vy = by - ay;
-  const wx = px - ax;
-  const wy = py - ay;
-  const len2 = vx * vx + vy * vy;
-  let t = len2 > 0 ? (wx * vx + wy * vy) / len2 : 0;
-  t = t < 0 ? 0 : t > 1 ? 1 : t;
-  const dx = px - (ax + t * vx);
-  const dy = py - (ay + t * vy);
-  return Math.hypot(dx, dy);
-}
-
-function insideRoundedRect(x, y, r) {
-  if (x < 0 || x > 1 || y < 0 || y > 1) return false;
-  const cx = Math.min(Math.max(x, r), 1 - r);
-  const cy = Math.min(Math.max(y, r), 1 - r);
-  return Math.hypot(x - cx, y - cy) <= r;
-}
-
-/* -------------------------------------------------------------- the mark --
- * Song Scratch, so: two S's. Each is one continuous stroke — the top bowl
- * swept round from its upper right, and the bottom bowl carrying on from the
- * waist and away to the lower left, which is what makes an S rather than a
- * figure eight. The two arcs meet exactly at the waist by construction.
- */
-
-/** Bowl radius. An S is 2r wide and 4r tall, before the stroke is added. */
-const R = 0.2;
-/** How thick the stroke is drawn, in the same 0..1 content box. */
-const WEIGHT = 0.1;
-/** Space between the pair. */
-const GAP = 0.06;
-/**
- * How far round each bowl goes. Short of a full turn on purpose: carry it much
- * past this and the terminals close on the waist, and the letter reads as a
- * spiral rather than an S.
- */
-const SWEEP = 182;
-
-/** One S's centreline, sampled fine enough that the joins read as smooth. */
-function sPoints(cx, cy) {
-  const points = [];
-  const arc = (ax, ay, from, to) => {
-    const steps = 28;
-    for (let i = 0; i <= steps; i++) {
-      const t = ((from + ((to - from) * i) / steps) * Math.PI) / 180;
-      points.push([ax + R * Math.cos(t), ay + R * Math.sin(t)]);
-    }
-  };
-  // Both bowls finish at the waist (cx, cy), which is -270° on the top circle
-  // and -90° on the bottom one, so the halves meet without a seam.
-  arc(cx, cy - R, -270 + SWEEP, -270); // top bowl, in from the upper right
-  arc(cx, cy + R, -90, -90 + SWEEP); // bottom bowl, out to the lower left
-  return points;
-}
-
-/** Both of them, centred as a pair in the content box. */
-const MARK = [
-  sPoints(0.5 - (2 * R + GAP) / 2, 0.5),
-  sPoints(0.5 + (2 * R + GAP) / 2, 0.5),
-];
-
-function markAlpha(x, y) {
-  for (const points of MARK) {
-    for (let i = 1; i < points.length; i++) {
-      const [ax, ay] = points[i - 1];
-      const [bx, by] = points[i];
-      if (distToSegment(x, y, ax, ay, bx, by) <= WEIGHT / 2) return 1;
-    }
+  const width = d.readUInt32BE(16);
+  const height = d.readUInt32BE(20);
+  const depth = d[24];
+  const colour = d[25];
+  const interlaced = d[28];
+  if (depth !== 8 || interlaced !== 0 || (colour !== 2 && colour !== 6)) {
+    throw new Error(
+      file + ': needs to be an 8-bit, non-interlaced RGB or RGBA PNG (got depth ' +
+        depth + ', colour type ' + colour + ')',
+    );
   }
-  return 0;
+  const channels = colour === 6 ? 4 : 3;
+
+  // The image data, which an encoder may have split across any number of chunks.
+  const parts = [];
+  for (let i = 8; i < d.length; ) {
+    const length = d.readUInt32BE(i);
+    if (d.toString('ascii', i + 4, i + 8) === 'IDAT') {
+      parts.push(d.subarray(i + 8, i + 8 + length));
+    }
+    i += 12 + length;
+  }
+  const data = inflateSync(Buffer.concat(parts));
+
+  /*
+   * Undo the per-scanline filters. Each one predicts a byte from the one to its
+   * left, the one above, and the one above-left; the file stores only how far
+   * out that prediction was, which is what makes PNG compress at all.
+   */
+  const stride = width * channels;
+  const pixels = Buffer.alloc(width * height * 4);
+  let prev = Buffer.alloc(stride);
+  let pos = 0;
+  for (let y = 0; y < height; y++) {
+    const filter = data[pos++];
+    const line = Buffer.from(data.subarray(pos, pos + stride));
+    pos += stride;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= channels ? line[x - channels] : 0;
+      const b = prev[x];
+      const c = x >= channels ? prev[x - channels] : 0;
+      let add = 0;
+      if (filter === 1) add = a;
+      else if (filter === 2) add = b;
+      else if (filter === 3) add = (a + b) >> 1;
+      else if (filter === 4) {
+        const p = a + b - c;
+        const pa = Math.abs(p - a);
+        const pb = Math.abs(p - b);
+        const pc = Math.abs(p - c);
+        add = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+      }
+      line[x] = (line[x] + add) & 0xff;
+    }
+    for (let x = 0; x < width; x++) {
+      const from = x * channels;
+      const to = (y * width + x) * 4;
+      pixels[to] = line[from];
+      pixels[to + 1] = line[from + 1];
+      pixels[to + 2] = line[from + 2];
+      pixels[to + 3] = channels === 4 ? line[from + 3] : 0xff;
+    }
+    prev = line;
+  }
+  return { width, height, pixels };
 }
 
-/**
- * @param {number} size         pixel dimensions
- * @param {number} corner       corner radius as a fraction of the size (0 = square)
- * @param {number} contentScale mark size relative to the icon box
- */
-function render(size, corner, contentScale) {
-  const SS = 4; // 4x4 supersampling
-  const data = Buffer.alloc(size * size * 4);
+/* ---------------------------------------------------------------- resize -- */
 
-  for (let py = 0; py < size; py++) {
-    for (let px = 0; px < size; px++) {
+/**
+ * Box filter: every pixel out is the average of the pixels it covers going in.
+ * Slower than picking the nearest one, and the reason the small sizes stay
+ * readable rather than breaking up into aliased confetti.
+ */
+function resize(src, size) {
+  const out = Buffer.alloc(size * size * 4);
+  const sx = src.width / size;
+  const sy = src.height / size;
+
+  for (let y = 0; y < size; y++) {
+    const y0 = Math.floor(y * sy);
+    const y1 = Math.max(y0 + 1, Math.ceil((y + 1) * sy));
+    for (let x = 0; x < size; x++) {
+      const x0 = Math.floor(x * sx);
+      const x1 = Math.max(x0 + 1, Math.ceil((x + 1) * sx));
       let r = 0;
       let g = 0;
       let b = 0;
       let a = 0;
-
-      for (let sy = 0; sy < SS; sy++) {
-        for (let sx = 0; sx < SS; sx++) {
-          const nx = (px + (sx + 0.5) / SS) / size;
-          const ny = (py + (sy + 0.5) / SS) / size;
-
-          let sr = 0;
-          let sg = 0;
-          let sb = 0;
-          let sa = 0;
-
-          if (corner === 0 || insideRoundedRect(nx, ny, corner)) {
-            sr = BLACK[0];
-            sg = BLACK[1];
-            sb = BLACK[2];
-            sa = 1;
-          }
-
-          const ux = (nx - 0.5) / contentScale + 0.5;
-          const uy = (ny - 0.5) / contentScale + 0.5;
-          const alpha = markAlpha(ux, uy);
-          if (alpha > 0) {
-            sr = WHITE[0] * alpha + sr * (1 - alpha);
-            sg = WHITE[1] * alpha + sg * (1 - alpha);
-            sb = WHITE[2] * alpha + sb * (1 - alpha);
-            sa = Math.max(sa, alpha);
-          }
-
-          r += sr;
-          g += sg;
-          b += sb;
-          a += sa;
+      let n = 0;
+      for (let yy = y0; yy < y1 && yy < src.height; yy++) {
+        for (let xx = x0; xx < x1 && xx < src.width; xx++) {
+          const i = (yy * src.width + xx) * 4;
+          r += src.pixels[i];
+          g += src.pixels[i + 1];
+          b += src.pixels[i + 2];
+          a += src.pixels[i + 3];
+          n++;
         }
       }
-
-      const n = SS * SS;
-      const i = (py * size + px) * 4;
-      data[i] = Math.round(r / n);
-      data[i + 1] = Math.round(g / n);
-      data[i + 2] = Math.round(b / n);
-      data[i + 3] = Math.round((a / n) * 255);
+      const o = (y * size + x) * 4;
+      out[o] = Math.round(r / n);
+      out[o + 1] = Math.round(g / n);
+      out[o + 2] = Math.round(b / n);
+      out[o + 3] = Math.round(a / n);
     }
   }
-
-  return data;
+  return out;
 }
 
 /* -------------------------------------------------------------- png codec -- */
@@ -233,45 +212,26 @@ function encodePng(rgba, size, opaque = false) {
   ]);
 }
 
-/* ------------------------------------------------------------------ build -- */
-
-/** The same mark as a 96-unit SVG, at the same content scale as icon-192. */
-const SVG = (() => {
-  const box = 96;
-  const scale = 0.72;
-  const at = (v) => (box / 2 + (v - 0.5) * box * scale).toFixed(2);
-  const path = (points) =>
-    points
-      .map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${at(x)} ${at(y)}`)
-      .join(' ');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}" width="${box}" height="${box}">
-  <rect width="${box}" height="${box}" rx="21" fill="#000000"/>
-  <g fill="none" stroke="#ffffff" stroke-width="${(WEIGHT * box * scale).toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">
-${MARK.map((points) => `    <path d="${path(points)}"/>`).join('\n')}
-  </g>
-</svg>
-`;
-})();
+/* ----------------------------------------------------------------- build -- */
 
 const TARGETS = [
-  { file: 'icon-16.png', size: 16, corner: 0.16, scale: 0.86 },
-  { file: 'icon-32.png', size: 32, corner: 0.16, scale: 0.86 },
-  { file: 'icon-192.png', size: 192, corner: 0.22, scale: 0.72 },
-  { file: 'icon-512.png', size: 512, corner: 0.22, scale: 0.72 },
-  // Maskable: full bleed, mark kept inside the 80% safe zone launchers crop to.
-  { file: 'icon-maskable-512.png', size: 512, corner: 0, scale: 0.56 },
-  // iOS applies its own mask, so ship a full square.
-  { file: 'apple-touch-icon.png', size: 180, corner: 0, scale: 0.68 },
+  { file: 'icon-16.png', size: 16 },
+  { file: 'icon-32.png', size: 32 },
+  { file: 'icon-192.png', size: 192 },
+  { file: 'icon-512.png', size: 512 },
+  // Launchers crop this one to a safe zone; the mark sits well inside it.
+  { file: 'icon-maskable-512.png', size: 512 },
+  // iOS applies its own rounded mask, so this ships as a full square.
+  { file: 'apple-touch-icon.png', size: 180 },
 ];
 
 /**
  * The native app icon, written straight into the Xcode asset catalog so the
  * home screen and the web app can never show different marks. Square, opaque,
- * and 1024 — the three things App Store Connect checks.
+ * and 1024 - the three things App Store Connect checks.
  */
 const IOS_APPICON = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
+  ROOT,
   'ios',
   'App',
   'App',
@@ -280,18 +240,26 @@ const IOS_APPICON = join(
   'AppIcon-512@2x.png',
 );
 
-mkdirSync(OUT_DIR, { recursive: true });
-writeFileSync(join(OUT_DIR, 'icon.svg'), SVG, 'utf8');
-console.log('icon.svg');
+const master = decodePng(SOURCE);
+if (master.width !== master.height) {
+  throw new Error(
+    'assets/icon-master.png must be square (it is ' + master.width + 'x' + master.height + ')',
+  );
+}
+console.log('master  ' + master.width + 'x' + master.height);
 
-for (const { file, size, corner, scale } of TARGETS) {
-  const png = encodePng(render(size, corner, scale), size);
+mkdirSync(OUT_DIR, { recursive: true });
+for (const { file, size } of TARGETS) {
+  const png = encodePng(resize(master, size), size);
   writeFileSync(join(OUT_DIR, file), png);
-  console.log(`${file}  ${size}x${size}  ${(png.length / 1024).toFixed(1)} KB`);
+  console.log(file + '  ' + size + 'x' + size + '  ' + (png.length / 1024).toFixed(1) + ' KB');
 }
 
-// The native icon, at the size and in the format App Store Connect insists on.
-writeFileSync(IOS_APPICON, encodePng(render(1024, 0, 0.68), 1024, true));
-console.log('ios AppIcon-512@2x.png  1024x1024  opaque');
+const appIcon = encodePng(resize(master, 1024), 1024, true);
+writeFileSync(IOS_APPICON, appIcon);
+console.log(
+  'ios AppIcon-512@2x.png  1024x1024  opaque  ' + (appIcon.length / 1024).toFixed(1) + ' KB',
+);
 
-console.log(`\nWrote ${TARGETS.length + 2} files`);
+console.log('');
+console.log('Wrote ' + (TARGETS.length + 1) + ' files from assets/icon-master.png');
