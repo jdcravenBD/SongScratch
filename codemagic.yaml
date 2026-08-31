@@ -81,6 +81,14 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
+        # Named explicitly. submit_to_testflight on its own only uploads the
+        # build and leaves it sitting there — whether any tester can actually
+        # install it then depends on App Store Connect distributing it by
+        # itself, which is what left build 1 attached to a group and still
+        # reading "No Builds Available". This hands it to the group over the
+        # API instead, which is the same thing the Builds tab does by hand.
+        beta_groups:
+          - Song Scratcher Group
       email:
         recipients:
           - jdcraven87@gmail.com
